@@ -134,8 +134,6 @@ int FileSystem::createDir(const std::string& dir_path) {
 }
 
 int FileSystem::createDir(const std::string& parent_path, const std::string& dir_name) {
-  //  uint64_t inode_id = getInodeIdByPath(parent_path);
-  //  auto& inode = inodes_.getInodeById(inode_id);
   return -1;
 }
 
@@ -183,15 +181,17 @@ int FileSystem::createFile(const std::string& file_path) {
     in::Inode& current_inode = inodes_.getInodeById(current_inode_id);
     if (!existsChild(current_inode, name)) {
       if (createChild(current_inode, name, true) < 0) {
+        delete[] name;
         return -1;
       }
     }
 
     if (getChildId(current_inode, std::string(name), &child_id) < 0) {
+      delete[] name;
       return -1;
     }
 
-    delete[] name;  // memory leak todo:remove
+    delete[] name;
 
     current_inode_id = child_id;
     next_name_ptr = next_name_end + 1;
@@ -206,28 +206,6 @@ int FileSystem::createFile(const std::string& file_path) {
   }
 
   return 0;
-
-  //  if (parent_path.empty()) {
-  //    FSPP_LOG("empty");
-  //    parent_path = "/";
-  //  }
-  //  FSPP_LOG(parent_path);
-  //  FSPP_LOG(file_name);
-  //
-  //  uint64_t inode_id;
-  //  if (getInodeIdByPath(parent_path, &inode_id) < 0) {
-  //    return -1;
-  //  }
-  //
-  //  in::Inode& inode = inodes_.getInodeById(inode_id);
-  //
-  //  uint64_t new_inode_id = inodes_.createInode();
-  //
-  //  Link link = {.inode_id = new_inode_id};
-  //  strcpy(link.name, file_name.c_str());
-  //
-  //  inodes_.append(&inode, &link, sizeof(Link));
-  //  return 0;
 }
 
 int FileSystem::deleteFile(const std::string& file_path) {
@@ -285,9 +263,11 @@ int FileSystem::getInodeIdByPath(std::string path, uint64_t* result_ptr) {
 
     uint64_t child_id = 0;
     if (getChildId(inodes_.getInodeById(current_inode_id), std::string(name), &child_id) < 0) {
+      delete[] name;
       return -1;
     }
-    delete[] name;  // memory leak todo:remove
+
+    delete[] name;
 
     current_inode_id = child_id;
     next_name_ptr = next_name_end + 1;
@@ -301,18 +281,6 @@ int FileSystem::getInodeIdByPath(std::string path, uint64_t* result_ptr) {
 
   *result_ptr = child_id;
   return 0;
-
-  //  std::regex path_regex("^(/([^/]+))(.*)$");
-  //  std::smatch match;
-  //
-  //  uint64_t inode_id = 0;
-  //  while (std::regex_match(path, match, path_regex)) {
-  //    std::string name = match[2];
-  //    assert(existsChild(inodes_.getInodeById(inode_id), name));
-  //    inode_id = getChildId(inodes_.getInodeById(inode_id), name);
-  //
-  //    path = match[3];
-  //  }
 }
 
 bool FileSystem::existsChild(internal::Inode& parent_inode, const std::string& name) {
