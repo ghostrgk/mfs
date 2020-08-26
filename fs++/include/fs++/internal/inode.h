@@ -33,8 +33,13 @@ class InodesList {
     return size_;
   }
 
+  // aaaaaaa
+  void setSize(uint64_t new_size) {
+    size_ = new_size;
+  }
+
   int addBlock(uint64_t block_id) {
-    if (size_ + 1 == 1000) {
+    if (size_ + 1 == INODE_MAX_BLOCK_COUNT) {
       return -1;
     }
 
@@ -44,12 +49,12 @@ class InodesList {
 
  private:
   uint64_t size_{0};
-  uint64_t block_ids_[1000];
+  uint64_t block_ids_[INODE_MAX_BLOCK_COUNT];
 };
 #endif
 
 struct Link {
-  char name[64];
+  char name[MAX_LINK_NAME_LEN + 1];
   uint64_t inode_id;
 };
 
@@ -91,7 +96,12 @@ class InodeSpace {
 
  public:
   uint64_t createInode();
+  static int addBlockToInode(Inode& inode, uint64_t block_id);
   void deleteInode(uint64_t inode_id);
+  /*!
+   * @note doesn't check possible existence of the entry
+   */
+  int addDirectoryEntry(Inode* inode_ptr, const char* name);
 
  private:
   Block& getBlockByIndex(Inode& inode, uint64_t index) const {
@@ -100,12 +110,12 @@ class InodeSpace {
 
   int extend(Inode& inode, uint64_t new_size) {
     uint64_t exact_block_count = (new_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    if (exact_block_count - inode.blocks_count > blocks_->getFreeBlockNum()) {
+    if (exact_block_count - inode.blocks_count > blocks_->getFreeBlockNum()) {  // and blocks in inode todo: fix
       return -1;
     }
 
     while (inode.blocks_count != exact_block_count) {
-      if (inode.inodes_list.addBlock(blocks_->createBlock()) < 0) {
+      if (addBlockToInode(inode, blocks_->createBlock()) < 0) {
         return -1;
       }
     }

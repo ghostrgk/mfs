@@ -11,11 +11,21 @@ bool check_path(const std::string& string) {
   return std::regex_match(string, path_match, path_regex);
 }
 
+template <typename T>
+void printSizes(T& os) {
+  os << "Inode size: " << sizeof(fspp::internal::Inode) << std::endl;
+  os << "Block size: " << sizeof(fspp::internal::Block) << std::endl;
+  os << "SuperBlock size: " << sizeof(fspp::internal::SuperBlock) << std::endl;
+  os << "Link size: " << sizeof(fspp::internal::Link) << std::endl;
+}
+
 int main(int argc, char** argv) {
   if (argc != 2) {
-    std::cerr << "Usage: " << argv[0] << "<path>" << std::endl;
+    std::cerr << "Usage: " << argv[0] << " <path>" << std::endl;
     return 1;
   }
+
+  printSizes(std::cerr);
 
   // filesystem init
   std::string filesystem_path(argv[1]);

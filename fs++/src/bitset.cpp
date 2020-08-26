@@ -13,8 +13,7 @@ BitSet::BitSet(uint64_t element_num) : element_num_(element_num) {
   memset(bytes_, 0, bitset_size);
 }
 
-BitSet::BitSet(uint64_t element_num, uint8_t* bytes)
-    : has_ownership_(false), element_num_(element_num), bytes_(bytes) {
+BitSet::BitSet(uint64_t element_num, uint8_t* bytes) : has_ownership_(false), element_num_(element_num), bytes_(bytes) {
   assert(element_num_ % 8 == 0);
 }
 

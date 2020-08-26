@@ -1,0 +1,2 @@
+- fde - file/directory entity
+- ffile - file in outer filesystem that contains app filesystem

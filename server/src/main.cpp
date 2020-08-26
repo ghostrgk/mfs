@@ -5,8 +5,6 @@
 #include <regex>
 
 int main() {
-  std::string path = "/a/b/c";
-
 
   return 0;
 }

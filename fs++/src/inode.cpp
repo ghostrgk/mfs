@@ -23,7 +23,7 @@ int InodeSpace::read(Inode* inode_ptr, void* buffer, uint64_t offset, uint64_t c
   auto* byte_buffer = static_cast<uint8_t*>(buffer);
   uint64_t count_down = count;
 
-  assert(offset + count < inode.file_size);
+  assert(offset + count <= inode.file_size);
 
   uint64_t buffer_offset = 0;
   uint64_t block_index = offset / BLOCK_SIZE;
@@ -48,7 +48,7 @@ int InodeSpace::read(Inode* inode_ptr, void* buffer, uint64_t offset, uint64_t c
     auto& block = getBlockByIndex(inode, block_index);
     const uint64_t read_size = std::min(count_down, BLOCK_SIZE);
 
-    memcpy(byte_buffer + buffer_offset, block.bytes + offset, read_size);
+    memcpy(byte_buffer + buffer_offset, block.bytes, read_size);
 
     count_down -= read_size;
     offset += read_size;
@@ -92,13 +92,13 @@ int InodeSpace::write(Inode* inode_ptr, const void* buffer, uint64_t offset, uin
 
   for (; block_index < inode.blocks_count && offset < inode.file_size && buffer_offset < count; ++block_index) {
     auto& block = getBlockByIndex(inode, block_index);
-    const uint64_t read_size = std::min(count_down, BLOCK_SIZE);
+    const uint64_t write_size = std::min(count_down, BLOCK_SIZE);
 
-    memcpy(block.bytes, byte_buffer + buffer_offset, read_size);
+    memcpy(block.bytes, byte_buffer + buffer_offset, write_size);
 
-    count_down -= read_size;
-    offset += read_size;
-    buffer_offset += read_size;
+    count_down -= write_size;
+    offset += write_size;
+    buffer_offset += write_size;
   }
 
   return buffer_offset;
@@ -110,7 +110,7 @@ int InodeSpace::append(Inode* inode_ptr, const void* buffer, uint64_t count) {
 
 uint64_t InodeSpace::createInode() {
   assert(*free_inode_num_ptr_ != 0);
-  ++(*free_inode_num_ptr_);
+  --(*free_inode_num_ptr_);
 
   uint64_t id = bit_set_.findCleanBit();
   bit_set_.setBit(id);
@@ -123,9 +123,31 @@ void InodeSpace::deleteInode(uint64_t inode_id) {
 
   auto& inode = getInodeById(inode_id);
   for (uint64_t i = 0; i < inode.blocks_count; ++i) {
-    blocks_->deleteBlock(inode.inodes_list[i]);
+    blocks_->deleteBlock(inode.inodes_list.getBlockIdByIndex(i));
   }
   bit_set_.clearBit(inode_id);
+}
+
+int InodeSpace::addDirectoryEntry(Inode* inode_ptr, const char* name) {
+  assert(strlen(name) <= MAX_LINK_NAME_LEN);
+  uint64_t new_inode_id = createInode();
+  Link link = {.inode_id = new_inode_id};
+  strcpy(link.name, name);
+
+  if (append(inode_ptr, &link, sizeof(Link)) < 0) {
+    return -1;
+  }
+
+  return 0;
+}
+
+int InodeSpace::addBlockToInode(Inode& inode, uint64_t block_id) {
+  if (inode.inodes_list.addBlock(block_id) < 0) {
+    return -1;
+  }
+
+  ++inode.blocks_count;
+  return 0;
 }
 
 #ifdef NORMAL_ILIST
