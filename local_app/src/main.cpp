@@ -40,8 +40,8 @@ int main(int argc, char** argv) {
       "\trmfile <filepath>\n\t\tdelete file\n"
       "\tmkdir <dirpath>\n\t\tcreate directory\n"
       "\trmdir <dirpath>\n\t\tdelete directory\n"
-      "\tload <from_path> <to_path>\n\t\tload from outer filesystem to app filesystem\n"
-      "\tsave <from_path> <to_path>\n\t\tsave to outer filesystem from app filesystem";
+      "\tstore <from_path> <to_path>\n\t\tstore from outer filesystem to app filesystem\n"
+      "\tload <from_path> <to_path>\n\t\tload to outer filesystem from app filesystem";
 
   // regexes init
   const std::regex exit_regex("^\\s*exit\\s*$");
@@ -50,8 +50,9 @@ int main(int argc, char** argv) {
   const std::regex rmfile_regex(R"(^\s*rmfile\s*([\w/]+)\s*$)");
   const std::regex mkdir_regex(R"(^\s*mkdir\s*([\w/]+)\s*$)");
   const std::regex rmdir_regex(R"(^\s*rmdir\s*([\w/]+)\s*$)");
+  const std::regex lsdir_regex(R"(^\s*lsdir\s*([\w/]+)\s*$)");
+  const std::regex store_regex(R"(^\s*store\s*([\w/]+)\s*([\w/]+)\s*$)");
   const std::regex load_regex(R"(^\s*load\s*([\w/]+)\s*([\w/]+)\s*$)");
-  const std::regex save_regex(R"(^\s*save\s*([\w/]+)\s*([\w/]+)\s*$)");
 
   // main loop
   while (true) {
@@ -129,8 +130,26 @@ int main(int argc, char** argv) {
       }
 
       std::cerr << "success" << std::endl;
-    } else if (std::regex_match(input, match, load_regex)) {
-      std::cerr << "load command: ";
+    } else if (std::regex_match(input, match, lsdir_regex)) {
+      std::cerr << "lsdir command: ";
+
+      const auto& path = match[1].str();
+      if (!check_path(path) && !(path == "/")) {
+        std::cout << "Wrong path format" << std::endl;
+        std::cerr << "continuing" << std::endl;
+        continue;
+      }
+
+      std::string output;
+      if (fs.listDir(path, output) < 0) {
+        std::cerr << "fail" << std::endl;
+        continue;
+      }
+      std::cout << output << std::endl;
+
+      std::cerr << "success" << std::endl;
+    } else if (std::regex_match(input, match, store_regex)) {
+      std::cerr << "store command: ";
 
       const auto& from_path = match[1].str();
       const auto& to_path = match[2].str();
@@ -141,8 +160,8 @@ int main(int argc, char** argv) {
       }
 
       std::cerr << "success" << std::endl;
-    } else if (std::regex_match(input, match, save_regex)) {
-      std::cerr << "save command: ";
+    } else if (std::regex_match(input, match, load_regex)) {
+      std::cerr << "load command: ";
 
       const auto& from_path = match[1].str();
       const auto& to_path = match[2].str();
@@ -157,7 +176,7 @@ int main(int argc, char** argv) {
       std::cerr << "help command" << std::endl;
       std::cout << help << std::endl;
     } else {
-      std::cerr << "nknown command" << std::endl;
+      std::cerr << "unknown command" << std::endl;
       std::cout << "Unknown command" << std::endl;
       std::cout << help << std::endl;
     }

@@ -1,4 +1,4 @@
-add_library(fs++ STATIC filesystem.cpp block.cpp inode.cpp bitset.cpp)
+add_library(fs++ STATIC filesystem.cpp block.cpp inode.cpp bitset.cpp fs_manager.cpp)
 
 target_include_directories(fs++ PUBLIC ${PROJECT_SOURCE_DIR}/include)
 
