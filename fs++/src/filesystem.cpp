@@ -24,7 +24,6 @@ int FileSystem::createDir(const std::string& dir_path) {
   return fsm_.createFDE(dir_path, /*is_dir=*/true);
 }
 
-// file leak todo:fix
 int FileSystem::deleteDir(const std::string& dir_path) {
   return fsm_.deleteFDE(dir_path, /*is_dir=*/true);
 }

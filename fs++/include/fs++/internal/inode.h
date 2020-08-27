@@ -29,6 +29,10 @@ class InodesList {
     return block_ids_[index];
   }
 
+  [[nodiscard]] uint64_t max_size() const {
+    return INODE_MAX_BLOCK_COUNT;
+  }
+
   [[nodiscard]] uint64_t size() const {
     return size_;
   }
@@ -119,7 +123,8 @@ class InodeSpace {
 
   int extend(Inode& inode, uint64_t new_size) {
     uint64_t exact_block_count = (new_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    if (exact_block_count - inode.blocks_count > blocks_->getFreeBlockNum()) {  // and blocks in inode todo: fix
+    if (exact_block_count - inode.blocks_count > blocks_->getFreeBlockNum() ||
+        exact_block_count > inode.inodes_list.max_size()) {
       return -1;
     }
 

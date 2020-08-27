@@ -15,6 +15,6 @@ static_assert(sizeof(char) == sizeof(uint8_t), "char should be 1 byte");
 static_assert(DEFAULT_BLOCK_COUNT % 8 == 0);
 static_assert(DEFAULT_INODE_COUNT % 8 == 0);
 static_assert(DEFAULT_BLOCK_COUNT % 32 == 0);
-// static_assert(DEFAULT_INODE_COUNT % 32 == 0);
+static_assert(DEFAULT_INODE_COUNT % 32 == 0);
 
 }  // namespace fspp
