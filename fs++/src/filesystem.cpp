@@ -81,7 +81,9 @@ int FileSystem::listDir(const std::string& dir_path, std::string& output) {
   for (uint64_t i = 0; i * sizeof(internal::Link) < inode.file_size; ++i) {
     internal::Link link;
     fsm_.read(&inode, &link, i * sizeof(internal::Link), sizeof(internal::Link));
-    output += std::string(link.name) + ((fsm_.getInodeById(link.inode_id).is_dir) ? "/ " : " ");
+    if (link.is_alive) {
+      output += std::string(link.name) + ((fsm_.getInodeById(link.inode_id).is_dir) ? "/ " : " ");
+    }
   }
 
   return 0;

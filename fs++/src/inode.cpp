@@ -115,25 +115,45 @@ uint64_t InodeSpace::createInode() {
   uint64_t id = bit_set_.findCleanBit();
   bit_set_.setBit(id);
 
+  clearInode(&getInodeById(id));
+
   return id;
 }
 
 void InodeSpace::deleteInode(uint64_t inode_id) {
   assert(bit_set_.getBit(inode_id));
 
+  if (Inode& inode = getInodeById(inode_id); inode.is_dir) {
+    // delete all files and subdirectories
+    for (uint64_t i = 0; i * sizeof(Link) < inode.file_size; ++i) {
+      Link link{};
+      read(&inode, &link, i * sizeof(Link), sizeof(Link));
+      if (link.is_alive) {
+        deleteInode(link.inode_id);
+      }
+    }
+  }
+
   auto& inode = getInodeById(inode_id);
   for (uint64_t i = 0; i < inode.blocks_count; ++i) {
     blocks_->deleteBlock(inode.inodes_list.getBlockIdByIndex(i));
   }
   bit_set_.clearBit(inode_id);
+
+  ++(*free_inode_num_ptr_);
 }
 
-int InodeSpace::addDirectoryEntry(Inode* inode_ptr, const char* name) {
+int InodeSpace::addDirectoryEntry(Inode* inode_ptr, const char* name, bool is_dir) {
   assert(strlen(name) <= MAX_LINK_NAME_LEN);
+
   uint64_t new_inode_id = createInode();
-  Link link = {.inode_id = new_inode_id};
+  getInodeById(new_inode_id).is_dir = is_dir;
+
+  Link link = {.is_alive = true, .inode_id = new_inode_id};
   strcpy(link.name, name);
 
+  // doesn't use places of possible dead entries
+  // todo: make it
   if (append(inode_ptr, &link, sizeof(Link)) < 0) {
     return -1;
   }
@@ -147,6 +167,18 @@ int InodeSpace::addBlockToInode(Inode& inode, uint64_t block_id) {
   }
 
   ++inode.blocks_count;
+  return 0;
+}
+
+int InodeSpace::gcLaterRename(uint64_t) {
+  return 0;
+}
+
+int InodeSpace::clearInode(Inode* inode_ptr) {
+  inode_ptr->inodes_list.clear();
+  inode_ptr->file_size = 0;
+  inode_ptr->blocks_count = 0;
+
   return 0;
 }
 

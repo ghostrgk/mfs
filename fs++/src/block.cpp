@@ -28,6 +28,7 @@ void BlockSpace::deleteBlock(uint64_t block_id) {
   assert(bit_set_.getBit(block_id));
 
   bit_set_.clearBit(block_id);
+  ++(*free_block_num_ptr_);
 }
 
 }  // namespace fspp::internal

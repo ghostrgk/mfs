@@ -33,6 +33,10 @@ class InodesList {
     return size_;
   }
 
+  void clear() {
+    size_ = 0;
+  }
+
   // aaaaaaa
   void setSize(uint64_t new_size) {
     size_ = new_size;
@@ -54,8 +58,9 @@ class InodesList {
 #endif
 
 struct Link {
-  char name[MAX_LINK_NAME_LEN + 1];
-  uint64_t inode_id;
+  bool is_alive{true};
+  char name[MAX_LINK_NAME_LEN + 1]{};
+  uint64_t inode_id{0};
 };
 
 struct Inode {
@@ -101,9 +106,13 @@ class InodeSpace {
   /*!
    * @note doesn't check possible existence of the entry
    */
-  int addDirectoryEntry(Inode* inode_ptr, const char* name);
+  int addDirectoryEntry(Inode* inode_ptr, const char* name, bool is_dir);
+
+  int gcLaterRename(uint64_t inode_id);
 
  private:
+  int clearInode(Inode* inode_ptr);
+
   Block& getBlockByIndex(Inode& inode, uint64_t index) const {
     return blocks_->getBlockById(inode.inodes_list.getBlockIdByIndex(index));
   }

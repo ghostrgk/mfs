@@ -19,9 +19,7 @@ class FSManager {
 
   bool existsFDE(const std::string& fde_path);
 
-  int deleteFDE(const std::string& file_path, bool is_dir) {
-    return -1;
-  }
+  int deleteFDE(const std::string& fde_path, bool is_dir);
 
   int deleteInode(uint64_t inode_id);
   int getChildId(Inode& parent_inode, const std::string& name, uint64_t* result_ptr);
@@ -35,6 +33,8 @@ class FSManager {
   Inode& getInodeById(uint64_t inode_id);
 
  private:
+  int getFDEInodeParentId(std::string fde_path, uint64_t* result_ptr) ;
+
  private:
   uint8_t* file_bytes_{nullptr};
   internal::SuperBlock* super_block_ptr_;

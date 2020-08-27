@@ -2,4 +2,4 @@
 
 #include <iostream>
 
-#define FSPP_LOG(x) std::cerr << (x) << std::endl
+#define FSPP_LOG(subsystem, msg) std::cerr << (subsystem) << ": " << (msg) << std::endl
