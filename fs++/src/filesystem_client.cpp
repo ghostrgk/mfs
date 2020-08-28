@@ -13,8 +13,8 @@ FileSystemClient::FileSystemClient(const std::string& ffile_path) : fs_(ffile_pa
 bool FileSystemClient::existsDir(const std::string& dir_path) {
   uint64_t inode_id;
 
-  if (fs_.getFDEInodeId(dir_path, &inode_id)) {
-    return -1;
+  if (fs_.getFDEInodeId(dir_path, &inode_id) < 0) {
+    return false;
   }
 
   return fs_.getInodeById(inode_id).is_dir;
@@ -31,8 +31,8 @@ int FileSystemClient::deleteDir(const std::string& dir_path) {
 bool FileSystemClient::existsFile(const std::string& file_path) {
   uint64_t inode_id;
 
-  if (fs_.getFDEInodeId(file_path, &inode_id)) {
-    return -1;
+  if (fs_.getFDEInodeId(file_path, &inode_id) < 0) {
+    return false;
   }
 
   return !fs_.getInodeById(inode_id).is_dir;

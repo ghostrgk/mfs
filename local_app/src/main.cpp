@@ -1,4 +1,3 @@
-#include <functional>
 #include <iostream>
 #include <string>
 #include <regex>
@@ -9,6 +8,149 @@ bool check_path(const std::string& string) {
   static const std::regex path_regex("(/\\w+)+");
   std::smatch path_match;
   return std::regex_match(string, path_match, path_regex);
+}
+
+int mkfile(fspp::FileSystemClient& fs, const std::string& query) {
+  static const std::regex full_regex(R"(^\s*mkfile\s+(/|((/\w+)+))\s*$)");
+  std::cerr << "mkfile command: ";
+
+  std::smatch match;
+  if (!std::regex_match(query, match, full_regex)) {
+    std::cout << "Wrong path format" << std::endl;
+    return -1;
+  }
+
+  const std::string& path = match[1];
+  std::cerr << "(path=" << path << ") ";
+
+  if (fs.existsDir(path)) {
+    std::cout << "Already exists directory with the same name" << std::endl;
+    return -1;
+  }
+
+  if (fs.existsFile(path)) {
+    std::cout << "File already exists" << std::endl;
+    return -1;
+  }
+
+  if (fs.createFile(path) < 0) {
+    return -1;
+  }
+
+  return 0;
+}
+
+int rmfile(fspp::FileSystemClient& fs, const std::string& query) {
+  static const std::regex full_regex(R"(^\s*rmfile\s+(/|(/\w+)+)\s*$)");
+  std::cerr << "rmfile command: ";
+
+  std::smatch match;
+  if (!std::regex_match(query, match, full_regex)) {
+    std::cout << "Wrong path format" << std::endl;
+    return -1;
+  }
+
+  const std::string& path = match[1];
+  std::cerr << "(path=" << path << ") ";
+
+  if (!fs.existsFile(path)) {
+    std::cout << "File doesn't exist" << std::endl;
+    return -1;
+  }
+
+  if (fs.deleteFile(path) < 0) {
+    return -1;
+  }
+
+  return 0;
+}
+
+int mkdir(fspp::FileSystemClient& fs, const std::string& query) {
+  static const std::regex full_regex(R"(^\s*mkdir\s+(/|((/\w+)+))\s*$)");
+  std::cerr << "mkdir command: ";
+
+  std::smatch match;
+  if (!std::regex_match(query, match, full_regex)) {
+    std::cout << "Wrong path format" << std::endl;
+    return -1;
+  }
+
+  const std::string& path = match[1];
+  std::cerr << "(path=" << path << ") ";
+
+  if (fs.existsDir(path)) {
+    std::cout << "Directory already exists" << std::endl;
+    return -1;
+  }
+
+  if (fs.existsFile(path)) {
+    std::cout << "Already exists file with the same name" << std::endl;
+    return -1;
+  }
+
+  if (fs.createDir(path) < 0) {
+    return -1;
+  }
+
+  return 0;
+}
+
+int rmdir(fspp::FileSystemClient& fs, const std::string& query) {
+  static const std::regex full_regex(R"(^\s*rmdir\s+(/|(/\w+)+)\s*$)");
+  std::cerr << "rmdir command: ";
+
+  std::smatch match;
+  if (!std::regex_match(query, match, full_regex)) {
+    std::cout << "Wrong path format" << std::endl;
+    return -1;
+  }
+
+  const std::string& path = match[1];
+  std::cerr << "(path=" << path << ") ";
+
+  if (!fs.existsDir(path)) {
+    std::cout << "Directory doesn't exist" << std::endl;
+    return -1;
+  }
+
+  if (path == "/") {
+    std::cout << "You can't remove root directory" << std::endl;
+    return -1;
+  }
+
+  if (fs.deleteDir(path) < 0) {
+    return -1;
+  }
+
+  return 0;
+}
+
+int lsdir(fspp::FileSystemClient& fs, const std::string& query) {
+  static const std::regex full_regex(R"(^\s*lsdir\s+(/|(/\w+)+)\s*$)");
+  std::cerr << "lsdir command: ";
+
+  std::smatch match;
+  if (!std::regex_match(query, match, full_regex)) {
+    std::cout << "Wrong path format" << std::endl;
+    return -1;
+  }
+
+  const std::string& path = match[1];
+  std::cerr << "(path=" << path << ") ";
+
+  if (!fs.existsDir(path)) {
+    std::cout << "Directory doesn't exist" << std::endl;
+    return -1;
+  }
+
+  std::string output;
+  if (fs.listDir(path, output) < 0) {
+    return -1;
+  }
+
+  std::cout << output << std::endl;
+
+  return 0;
 }
 
 template <typename T>
@@ -44,15 +186,15 @@ int main(int argc, char** argv) {
       "\tload <from_path> <to_path>\n\t\tload to outer filesystem from app filesystem";
 
   // regexes init
-  const std::regex exit_regex("^\\s*exit\\s*$");
-  const std::regex help_regex("^\\s*help\\s*$");
-  const std::regex mkfile_regex(R"(^\s*mkfile\s*([\w/]+)\s*$)");
-  const std::regex rmfile_regex(R"(^\s*rmfile\s*([\w/]+)\s*$)");
-  const std::regex mkdir_regex(R"(^\s*mkdir\s*([\w/]+)\s*$)");
-  const std::regex rmdir_regex(R"(^\s*rmdir\s*([\w/]+)\s*$)");
-  const std::regex lsdir_regex(R"(^\s*lsdir\s*([\w/]+)\s*$)");
-  const std::regex store_regex(R"(^\s*store\s*([\w/]+)\s*([\w/]+)\s*$)");
-  const std::regex load_regex(R"(^\s*load\s*([\w/]+)\s*([\w/]+)\s*$)");
+  const std::regex exit_regex(R"(^\s*exit\s*$)");
+  const std::regex help_regex(R"(^\s*help\s*$)");
+  const std::regex mkfile_cmd_regex(R"(^\s*mkfile\s+)");
+  const std::regex rmfile_cmd_regex(R"(^\s*rmfile\s+)");
+  const std::regex mkdir_cmd_regex(R"(^\s*mkdir\s+)");
+  const std::regex rmdir_cmd_regex(R"(^\s*rmdir\s+)");
+  const std::regex lsdir_cmd_regex(R"(^\s*lsdir\s+)");
+  const std::regex store_regex(R"(^\s*store\s*([\w/]+)\s+([\w/]+)\s*$)");
+  const std::regex load_regex(R"(^\s*load\s*([\w/]+)\s+([\w/]+)\s*$)");
 
   // main loop
   while (true) {
@@ -66,93 +208,33 @@ int main(int argc, char** argv) {
     if (std::regex_match(input, match, exit_regex)) {
       std::cerr << "exit command: exiting" << std::endl;
       break;
-    } else if (std::regex_match(input, match, mkfile_regex)) {
-      std::cerr << "mkfile command: ";
 
-      const auto& path = match[1].str();
-      if (!check_path(path)) {
-        std::cout << "Wrong path format" << std::endl;
-        std::cerr << "continuing" << std::endl;
-        continue;
-      }
+    } else if (std::regex_search(input, match, mkfile_cmd_regex)) {
+      int result = mkfile(fs, input);
+      std::cerr << (result < 0 ? "fail" : "success") << std::endl;
 
-      if (fs.createFile(path) < 0) {
-        std::cerr << "fail" << std::endl;
-        continue;
-      }
+    } else if (std::regex_search(input, match, rmfile_cmd_regex)) {
+      int result = rmfile(fs, input);
+      std::cerr << (result < 0 ? "fail" : "success") << std::endl;
 
-      std::cerr << "success" << std::endl;
-    } else if (std::regex_match(input, match, rmfile_regex)) {
-      std::cerr << "rmfile command: ";
+    } else if (std::regex_search(input, match, mkdir_cmd_regex)) {
+      int result = mkdir(fs, input);
+      std::cerr << (result < 0 ? "fail" : "success") << std::endl;
 
-      const auto& path = match[1].str();
-      if (!check_path(path)) {
-        std::cout << "Wrong path format" << std::endl;
-        std::cerr << "continuing" << std::endl;
-        continue;
-      }
+    } else if (std::regex_search(input, match, rmdir_cmd_regex)) {
+      int result = rmdir(fs, input);
+      std::cerr << (result < 0 ? "fail" : "success") << std::endl;
 
-      if (fs.deleteFile(path) < 0) {
-        std::cerr << "fail" << std::endl;
-        continue;
-      }
+    } else if (std::regex_search(input, match, lsdir_cmd_regex)) {
+      int result = lsdir(fs, input);
+      std::cerr << (result < 0 ? "fail" : "success") << std::endl;
 
-      std::cerr << "success" << std::endl;
-    } else if (std::regex_match(input, match, mkdir_regex)) {
-      std::cerr << "mkdir command: ";
-
-      const auto& path = match[1].str();
-      if (!check_path(path)) {
-        std::cout << "Wrong path format" << std::endl;
-        std::cerr << "continuing" << std::endl;
-        continue;
-      }
-
-      if (fs.createDir(path) < 0) {
-        std::cerr << "fail" << std::endl;
-        continue;
-      }
-
-      std::cerr << "success" << std::endl;
-    } else if (std::regex_match(input, match, rmdir_regex)) {
-      std::cerr << "rmdir command: ";
-
-      const auto& path = match[1].str();
-      if (!check_path(path)) {
-        std::cout << "Wrong path format" << std::endl;
-        std::cerr << "continuing" << std::endl;
-        continue;
-      }
-
-      if (fs.deleteDir(path) < 0) {
-        std::cerr << "fail" << std::endl;
-        continue;
-      }
-
-      std::cerr << "success" << std::endl;
-    } else if (std::regex_match(input, match, lsdir_regex)) {
-      std::cerr << "lsdir command: ";
-
-      const auto& path = match[1].str();
-      if (!check_path(path) && !(path == "/")) {
-        std::cout << "Wrong path format" << std::endl;
-        std::cerr << "continuing" << std::endl;
-        continue;
-      }
-
-      std::string output;
-      if (fs.listDir(path, output) < 0) {
-        std::cerr << "fail" << std::endl;
-        continue;
-      }
-      std::cout << output << std::endl;
-
-      std::cerr << "success" << std::endl;
     } else if (std::regex_match(input, match, store_regex)) {
       std::cerr << "store command: ";
 
-      const auto& from_path = match[1].str();
-      const auto& to_path = match[2].str();
+      const std::string& from_path = match[1];
+      const std::string& to_path = match[2];
+
       if (!check_path(from_path) || !check_path(to_path)) {
         std::cout << "Wrong from or to path format" << std::endl;
         std::cerr << "continuing" << std::endl;

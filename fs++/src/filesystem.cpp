@@ -159,6 +159,10 @@ int FileSystem::getFDEInodeId(std::string fde_path, uint64_t* result_ptr) {
 
     delete[] name;
 
+    if (!getInodeById(child_id).is_dir) {
+      return -1;
+    }
+
     current_inode_id = child_id;
     next_name_ptr = next_name_end + 1;
     next_name_end = strchr(next_name_ptr, '/');
@@ -268,6 +272,10 @@ int FileSystem::createFDE(const std::string& fde_path, bool is_dir) {
 
     delete[] name;
 
+    if (!getInodeById(child_id).is_dir) {
+      return -1;
+    }
+
     current_inode_id = child_id;
     next_name_ptr = next_name_end + 1;
     next_name_end = strchr(next_name_ptr, '/');
@@ -350,6 +358,10 @@ int FileSystem::getFDEInodeParentId(std::string fde_path, uint64_t* result_ptr) 
     }
 
     delete[] name;
+
+    if (!getInodeById(child_id).is_dir) {
+      return -1;
+    }
 
     current_inode_id = child_id;
     next_name_ptr = next_name_end + 1;
