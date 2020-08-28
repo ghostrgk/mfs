@@ -220,6 +220,14 @@ int store(fspp::FileSystemClient& fs, const std::string& query) {
   }
 
   int bytes_written = fs.writeFileContent(to_path, 0, from_file_content, from_file_len);
+  if (bytes_written == -1) {
+    std::cout << "Can't write to app filesystem" << std::endl;
+
+    munmap(from_file_content, from_file_len);
+    close(from_fd);
+    return -1;
+  }
+
   if ((uint64_t)bytes_written != from_file_len) {
     std::cerr << "possible file corruption" << std::endl;
   }

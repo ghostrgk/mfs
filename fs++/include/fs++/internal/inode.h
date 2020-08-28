@@ -4,6 +4,10 @@
 #include "bitset.h"
 #include "block.h"
 
+#ifndef NORMAL_ILIST
+#include <cassert>
+#endif
+
 namespace fspp::internal {
 
 #ifdef NORMAL_ILIST
@@ -22,7 +26,6 @@ class InodesList {
   IndirectionLevel2 level2_;
 };
 #else
-#include <cassert>
 class InodesList {
  public:
   [[nodiscard]] uint64_t getBlockIdByIndex(uint64_t index) const {

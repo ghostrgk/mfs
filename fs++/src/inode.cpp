@@ -1,7 +1,8 @@
-#include "fs++/internal/inode.h"
+#include <fs++/internal/inode.h>
 
-#include <algorithm>
 #include <cstring>
+
+#include <fs++/internal/logging.h>
 
 namespace fspp::internal {
 
@@ -65,6 +66,7 @@ int InodeSpace::write(Inode* inode_ptr, const void* buffer, uint64_t offset, uin
 
   if (offset + count > inode.file_size) {
     if (extend(inode, offset + count) < 0) {
+      FSPP_LOG("INODE", "can't extend inodes");
       return -1;
     }
   }

@@ -114,6 +114,11 @@ FileSystem::FileSystem(const std::string& ffile_path) {
   inodes_ = in::InodeSpace(&super_block_ptr_->inode_num, &super_block_ptr_->free_inode_num,
                            file_bytes_ + super_block_ptr_->InodeBitSetOffset(), &blocks_,
                            reinterpret_cast<internal::Inode*>(file_bytes_ + super_block_ptr_->InodesOffset()));
+
+  FSPP_LOG("FSM", "inode bitset: " + std::to_string(super_block_ptr_->InodeBitSetOffset()));
+  FSPP_LOG("FSM", "block bitset: " + std::to_string(super_block_ptr_->BlockBitSetOffset()));
+  FSPP_LOG("FSM", "inodes: " + std::to_string(super_block_ptr_->InodesOffset()));
+  FSPP_LOG("FSM", "blocks: " + std::to_string(super_block_ptr_->BlocksOffset()));
 }
 
 FileSystem::~FileSystem() {

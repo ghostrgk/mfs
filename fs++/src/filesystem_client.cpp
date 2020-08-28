@@ -1,8 +1,9 @@
 #include "fs++/filesystem_client.h"
 
 #include <cstring>
+#include <cassert>
 
-// filesystem file layout
+// ffile layout
 // | superblock | inode_bitset | block_bitset | inodes | blocks |
 
 namespace fspp {
@@ -55,7 +56,8 @@ int FileSystemClient::readFileContent(const std::string& file_path, uint64_t off
   return fs_.read(&fs_.getInodeById(inode_id), buffer, offset, size);
 }
 
-int FileSystemClient::writeFileContent(const std::string& file_path, uint64_t offset, const void* buffer, uint64_t size) {
+int FileSystemClient::writeFileContent(const std::string& file_path, uint64_t offset, const void* buffer,
+                                       uint64_t size) {
   uint64_t inode_id;
   if (fs_.getFDEInodeId(file_path, &inode_id) < 0) {
     return -1;
@@ -66,6 +68,13 @@ int FileSystemClient::writeFileContent(const std::string& file_path, uint64_t of
 
 int FileSystemClient::listDir(const std::string& dir_path, std::string& output) {
   return fs_.listDir(dir_path, output);
+}
+
+uint64_t FileSystemClient::fileSize(const std::string& file_path) {
+  uint64_t inode_id;
+  assert(fs_.getFDEInodeId(file_path, &inode_id) >= 0);
+
+  return fs_.getInodeById(inode_id).file_size;
 }
 
 }  // namespace fspp
