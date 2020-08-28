@@ -2,6 +2,14 @@
 #include <string>
 #include <regex>
 
+#include <cassert>
+
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 #include <fs++/filesystem_client.h>
 
 bool check_path(const std::string& string) {
@@ -11,7 +19,7 @@ bool check_path(const std::string& string) {
 }
 
 int mkfile(fspp::FileSystemClient& fs, const std::string& query) {
-  static const std::regex full_regex(R"(^\s*mkfile\s+(/|((/\w+)+))\s*$)");
+  static const std::regex full_regex(R"(^\s*mkfile\s+(/|((/[\w.]+)+))\s*$)");
   std::cerr << "mkfile command: ";
 
   std::smatch match;
@@ -41,7 +49,7 @@ int mkfile(fspp::FileSystemClient& fs, const std::string& query) {
 }
 
 int rmfile(fspp::FileSystemClient& fs, const std::string& query) {
-  static const std::regex full_regex(R"(^\s*rmfile\s+(/|(/\w+)+)\s*$)");
+  static const std::regex full_regex(R"(^\s*rmfile\s+(/|(/[\w.]+)+)\s*$)");
   std::cerr << "rmfile command: ";
 
   std::smatch match;
@@ -66,7 +74,7 @@ int rmfile(fspp::FileSystemClient& fs, const std::string& query) {
 }
 
 int mkdir(fspp::FileSystemClient& fs, const std::string& query) {
-  static const std::regex full_regex(R"(^\s*mkdir\s+(/|((/\w+)+))\s*$)");
+  static const std::regex full_regex(R"(^\s*mkdir\s+(/|((/[\w.]+)+))\s*$)");
   std::cerr << "mkdir command: ";
 
   std::smatch match;
@@ -96,7 +104,7 @@ int mkdir(fspp::FileSystemClient& fs, const std::string& query) {
 }
 
 int rmdir(fspp::FileSystemClient& fs, const std::string& query) {
-  static const std::regex full_regex(R"(^\s*rmdir\s+(/|(/\w+)+)\s*$)");
+  static const std::regex full_regex(R"(^\s*rmdir\s+(/|(/[\w.]+)+)\s*$)");
   std::cerr << "rmdir command: ";
 
   std::smatch match;
@@ -126,7 +134,7 @@ int rmdir(fspp::FileSystemClient& fs, const std::string& query) {
 }
 
 int lsdir(fspp::FileSystemClient& fs, const std::string& query) {
-  static const std::regex full_regex(R"(^\s*lsdir\s+(/|(/\w+)+)\s*$)");
+  static const std::regex full_regex(R"(^\s*lsdir\s+(/|(/[\w.]+)+)\s*$)");
   std::cerr << "lsdir command: ";
 
   std::smatch match;
@@ -149,6 +157,75 @@ int lsdir(fspp::FileSystemClient& fs, const std::string& query) {
   }
 
   std::cout << output << std::endl;
+
+  return 0;
+}
+
+int store(fspp::FileSystemClient& fs, const std::string& query) {
+  static const std::regex full_regex(R"(^\s*store\s+(/|(/[\w.]+)+)\s+(/|(/[\w.]+)+)\s*$)");
+  std::cerr << "store command: ";
+
+  std::smatch match;
+  if (!std::regex_match(query, match, full_regex)) {
+    std::cout << "Wrong from_path or to_path format" << std::endl;
+    return -1;
+  }
+
+  const std::string& from_path = match[1];
+  std::string to_path = match[3];
+  std::cerr << "(from_path=" << from_path << ") ";
+  std::cerr << "(to_path=" << to_path << ") ";
+
+
+  const char* from_basename_start = strrchr(from_path.c_str(), '/') + 1;
+  assert(from_basename_start != nullptr);
+  std::string from_basename(from_basename_start);
+
+  if (fs.existsDir(to_path)) {
+    to_path += from_basename;
+  }
+
+  int from_fd = open(from_path.c_str(), O_RDONLY);
+  if (from_fd < 0) {
+    std::cout << "Can't open from_file" << std::endl;
+    return -1;
+  }
+
+  struct stat stat_buf{};
+  if (fstat(from_fd, &stat_buf) < 0) {
+    std::cout << "Can't read from_file length" << std::endl;
+
+    close(from_fd);
+    return -1;
+  }
+
+  if (S_ISDIR(stat_buf.st_mode)) {
+    std::cout << "You can't store directory. Only storing files is supporting" << std::endl;
+
+    close(from_fd);
+    return -1;
+  }
+
+  uint64_t from_file_len = stat_buf.st_size;
+  void* from_file_content = mmap64(nullptr, from_file_len, PROT_READ, MAP_PRIVATE, from_fd, 0);
+
+  if (!fs.existsFile(to_path)) {
+    if (fs.createFile(to_path) < 0) {
+      std::cout << "Can't create file in app filesystem" << std::endl;
+
+      munmap(from_file_content, from_file_len);
+      close(from_fd);
+      return -1;
+    }
+  }
+
+  int bytes_written = fs.writeFileContent(to_path, 0, from_file_content, from_file_len);
+  if ((uint64_t)bytes_written != from_file_len) {
+    std::cerr << "possible file corruption" << std::endl;
+  }
+
+  munmap(from_file_content, from_file_len);
+  close(from_fd);
 
   return 0;
 }
@@ -193,7 +270,7 @@ int main(int argc, char** argv) {
   const std::regex mkdir_cmd_regex(R"(^\s*mkdir\s+)");
   const std::regex rmdir_cmd_regex(R"(^\s*rmdir\s+)");
   const std::regex lsdir_cmd_regex(R"(^\s*lsdir\s+)");
-  const std::regex store_regex(R"(^\s*store\s*([\w/]+)\s+([\w/]+)\s*$)");
+  const std::regex store_cmd_regex(R"(^\s*store\s+)");
   const std::regex load_regex(R"(^\s*load\s*([\w/]+)\s+([\w/]+)\s*$)");
 
   // main loop
@@ -229,19 +306,11 @@ int main(int argc, char** argv) {
       int result = lsdir(fs, input);
       std::cerr << (result < 0 ? "fail" : "success") << std::endl;
 
-    } else if (std::regex_match(input, match, store_regex)) {
-      std::cerr << "store command: ";
+    } else if (std::regex_search(input, match, store_cmd_regex)) {
+      int result = store(fs, input);
+      std::cerr << (result < 0 ? "fail" : "success") << std::endl;
 
-      const std::string& from_path = match[1];
-      const std::string& to_path = match[2];
 
-      if (!check_path(from_path) || !check_path(to_path)) {
-        std::cout << "Wrong from or to path format" << std::endl;
-        std::cerr << "continuing" << std::endl;
-        continue;
-      }
-
-      std::cerr << "success" << std::endl;
     } else if (std::regex_match(input, match, load_regex)) {
       std::cerr << "load command: ";
 
