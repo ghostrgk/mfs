@@ -51,16 +51,16 @@ static int initRootInode(int ffile_fd, in::SuperBlock& superblock) {
 
 // todo: remove abort
 FileSystem::FileSystem(const std::string& ffile_path) {
-  int fd = open(ffile_path.c_str(), O_RDWR);
-  if (fd == -1) {
+  fd_ = open(ffile_path.c_str(), O_RDWR);
+  if (fd_ == -1) {
     if (errno != ENOENT) {
       FSPP_HANDLE_ERROR("Can't open ffile");
     }
 
     FSPP_LOG("FSM", "No ffile found. Creating default ffile.");
 
-    fd = open(ffile_path.c_str(), O_CREAT | O_RDWR | O_TRUNC, 0600);
-    if (fd == -1) {
+    fd_ = open(ffile_path.c_str(), O_CREAT | O_RDWR | O_TRUNC, 0600);
+    if (fd_ == -1) {
       FSPP_HANDLE_ERROR("Can't open ffile");
     }
 
@@ -69,11 +69,11 @@ FileSystem::FileSystem(const std::string& ffile_path) {
                                   .inode_num = DEFAULT_INODE_COUNT,
                                   .free_inode_num = super_block.inode_num};
 
-    if (ftruncate(fd, super_block.FileSystemSize()) == -1) {
+    if (ftruncate(fd_, super_block.FileSystemSize()) == -1) {
       FSPP_HANDLE_ERROR("Truncation failed");
     }
     auto* file_start = static_cast<in::SuperBlock*>(
-        mmap64(nullptr, sizeof(in::SuperBlock), PROT_WRITE | PROT_READ, MAP_SHARED, fd, 0));
+        mmap64(nullptr, sizeof(in::SuperBlock), PROT_WRITE | PROT_READ, MAP_SHARED, fd_, 0));
     if (file_start == MAP_FAILED) {
       FSPP_HANDLE_ERROR("Can't mmap truncated file");
     }
@@ -83,13 +83,13 @@ FileSystem::FileSystem(const std::string& ffile_path) {
       FSPP_HANDLE_ERROR("munmap truncated file failed");
     }
 
-    if (initRootInode(fd, super_block) < 0) {
+    if (initRootInode(fd_, super_block) < 0) {
       std::abort();
     }
   }
 
   auto* file_start =
-      static_cast<in::SuperBlock*>(mmap64(nullptr, sizeof(in::SuperBlock), PROT_READ, MAP_SHARED, fd, 0));
+      static_cast<in::SuperBlock*>(mmap64(nullptr, sizeof(in::SuperBlock), PROT_READ, MAP_SHARED, fd_, 0));
   if (file_start == MAP_FAILED) {
     FSPP_HANDLE_ERROR("Can't mmap metadata for read");
   }
@@ -101,7 +101,7 @@ FileSystem::FileSystem(const std::string& ffile_path) {
 
   FSPP_LOG("FSM", "Initializing fsm object.");
   file_bytes_ =
-      static_cast<uint8_t*>(mmap64(nullptr, super_block.FileSystemSize(), PROT_WRITE | PROT_READ, MAP_SHARED, fd, 0));
+      static_cast<uint8_t*>(mmap64(nullptr, super_block.FileSystemSize(), PROT_WRITE | PROT_READ, MAP_SHARED, fd_, 0));
 
   if (file_bytes_ == MAP_FAILED) {
     FSPP_HANDLE_ERROR("Can't mmap ffile");
@@ -121,6 +121,8 @@ FileSystem::~FileSystem() {
   if (munmap(file_bytes_, super_block_ptr_->FileSystemSize()) == -1) {
     FSPP_HANDLE_ERROR("Can't unmap ffile");
   }
+
+  close(fd_);
 }
 
 int FileSystem::deleteInode(uint64_t inode_id) {
@@ -222,7 +224,7 @@ int FileSystem::write(Inode* inode_ptr, const void* buffer, uint64_t offset, uin
   return inodes_.write(inode_ptr, buffer, offset, count);
 }
 
-int FileSystem::append(Inode* inode_ptr, const void* buffer, uint64_t count) {
+[[maybe_unused]] int FileSystem::append(Inode* inode_ptr, const void* buffer, uint64_t count) {
   return inodes_.append(inode_ptr, buffer, count);
 }
 
