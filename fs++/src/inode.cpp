@@ -126,7 +126,7 @@ void InodeSpace::deleteInode(uint64_t inode_id) {
   if (Inode& inode = getInodeById(inode_id); inode.is_dir) {
     // delete all files and subdirectories
     for (uint64_t i = 0; i * sizeof(Link) < inode.file_size; ++i) {
-      Link link{};
+      Link link;
       read(&inode, &link, i * sizeof(Link), sizeof(Link));
       if (link.is_alive) {
         deleteInode(link.inode_id);
@@ -149,12 +149,22 @@ int InodeSpace::addDirectoryEntry(Inode* inode_ptr, const char* name, bool is_di
   uint64_t new_inode_id = createInode();
   getInodeById(new_inode_id).is_dir = is_dir;
 
-  Link link = {.is_alive = true, .inode_id = new_inode_id};
-  strcpy(link.name, name);
+  Link new_link = {.is_alive = true, .inode_id = new_inode_id};
+  strcpy(new_link.name, name);
 
-  // doesn't use places of possible dead entries
-  // todo: make it
-  if (append(inode_ptr, &link, sizeof(Link)) < 0) {
+  for (uint64_t i = 0; i * sizeof(Link) < inode_ptr->file_size; ++i) {
+    Link link;
+    read(inode_ptr, &link, i * sizeof(Link), sizeof(Link));
+    if (!link.is_alive) {
+      if (write(inode_ptr, &new_link, i * sizeof(Link), sizeof(Link)) < 0) {
+        return -1;
+      }
+
+      return 0;
+    }
+  }
+
+  if (append(inode_ptr, &new_link, sizeof(Link)) < 0) {
     return -1;
   }
 
@@ -178,6 +188,28 @@ int InodeSpace::clearInode(Inode* inode_ptr) {
   inode_ptr->inodes_list.clear();
   inode_ptr->file_size = 0;
   inode_ptr->blocks_count = 0;
+
+  return 0;
+}
+
+Block& InodeSpace::getBlockByIndex(Inode& inode, uint64_t index) const {
+  return blocks_->getBlockById(inode.inodes_list.getBlockIdByIndex(index));
+}
+
+int InodeSpace::extend(Inode& inode, uint64_t new_size) {
+  uint64_t exact_block_count = (new_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
+  if (exact_block_count - inode.blocks_count > blocks_->getFreeBlockNum() ||
+      exact_block_count > inode.inodes_list.max_size()) {
+    return -1;
+  }
+
+  while (inode.blocks_count != exact_block_count) {
+    if (addBlockToInode(inode, blocks_->createBlock()) < 0) {
+      return -1;
+    }
+  }
+
+  inode.file_size = new_size;
 
   return 0;
 }

@@ -1,9 +1,16 @@
 #include "fs++/internal/bitset.h"
 
+#include <cassert>
 #include <cstdlib>
 #include <cstring>
 
 namespace fspp::internal {
+
+BitSet::BitSet() {
+  has_ownership_ = false;
+  element_num_ = 0;
+  bytes_ = nullptr;
+}
 
 BitSet::BitSet(uint64_t element_num) : element_num_(element_num) {
   assert(element_num_ % 8 == 0);
@@ -15,6 +22,32 @@ BitSet::BitSet(uint64_t element_num) : element_num_(element_num) {
 
 BitSet::BitSet(uint64_t element_num, uint8_t* bytes) : has_ownership_(false), element_num_(element_num), bytes_(bytes) {
   assert(element_num_ % 8 == 0);
+}
+
+BitSet::BitSet(BitSet&& other) noexcept {
+  has_ownership_ = other.has_ownership_;
+  element_num_ = other.element_num_;
+  bytes_ = other.bytes_;
+
+  other.has_ownership_ = false;
+  other.element_num_ = 0;
+  other.bytes_ = nullptr;
+}
+
+BitSet& BitSet::operator=(BitSet&& other) noexcept {
+  if (has_ownership_) {
+    delete[] bytes_;
+  }
+
+  has_ownership_ = other.has_ownership_;
+  element_num_ = other.element_num_;
+  bytes_ = other.bytes_;
+
+  other.has_ownership_ = false;
+  other.element_num_ = 0;
+  other.bytes_ = nullptr;
+
+  return *this;
 }
 
 BitSet::~BitSet() {
@@ -92,38 +125,6 @@ uint8_t* BitSet::getByteByIndex(uint64_t index) {
   }
 
   return &bytes_[index / 8];
-}
-
-BitSet::BitSet(BitSet&& other) noexcept {
-  has_ownership_ = other.has_ownership_;
-  element_num_ = other.element_num_;
-  bytes_ = other.bytes_;
-
-  other.has_ownership_ = false;
-  other.element_num_ = 0;
-  other.bytes_ = nullptr;
-}
-
-BitSet& BitSet::operator=(BitSet&& other) noexcept {
-  if (has_ownership_) {
-    delete[] bytes_;
-  }
-
-  has_ownership_ = other.has_ownership_;
-  element_num_ = other.element_num_;
-  bytes_ = other.bytes_;
-
-  other.has_ownership_ = false;
-  other.element_num_ = 0;
-  other.bytes_ = nullptr;
-
-  return *this;
-}
-
-BitSet::BitSet() {
-  has_ownership_ = false;
-  element_num_ = 0;
-  bytes_ = nullptr;
 }
 
 }  // namespace fspp::internal

@@ -1,91 +1,382 @@
-#include "fs++/filesystem.h"
-
 #include <cstring>
+#include <fcntl.h>
+#include <unistd.h>
 
-// filesystem file layout
-// | superblock | inode_bitset | block_bitset | inodes | blocks |
+#include <sys/mman.h>
 
-namespace fspp {
+#include "fs++/internal/filesystem.h"
+#include "fs++/internal/logging.h"
+#include "fs++/internal/config.h"
+#include "fs++/internal/compiler.h"
 
-FileSystem::FileSystem(const std::string& ffile_path) : fsm_(ffile_path) {
-}
+#define FSPP_HANDLE_ERROR(msg) \
+  do {                         \
+    perror(msg);               \
+    std::abort();              \
+  } while (false)
 
-bool FileSystem::existsDir(const std::string& dir_path) {
-  uint64_t inode_id;
+namespace fspp::internal {
 
-  if (fsm_.getFDEInodeId(dir_path, &inode_id)) {
+namespace in = internal;
+using internal::Link;
+
+static int initRootInode(int ffile_fd, in::SuperBlock& superblock) {
+  auto* ffile_content = static_cast<uint8_t*>(
+      mmap64(nullptr, superblock.FileSystemSize(), PROT_WRITE | PROT_READ, MAP_SHARED, ffile_fd, 0));
+
+  if (ffile_content == MAP_FAILED) {
+    perror("Can't mmap ffile for root inode initializing");
     return -1;
   }
 
-  return fsm_.getInodeById(inode_id).is_dir;
-}
+  auto* superblock_ptr = reinterpret_cast<in::SuperBlock*>(ffile_content);
+  --(superblock_ptr->free_inode_num);
 
-int FileSystem::createDir(const std::string& dir_path) {
-  return fsm_.createFDE(dir_path, /*is_dir=*/true);
-}
+  auto* root_inode_ptr = reinterpret_cast<in::Inode*>(ffile_content + superblock.InodesOffset());
+  root_inode_ptr->is_dir = true;
+  root_inode_ptr->inodes_list.setSize(0);
+  root_inode_ptr->blocks_count = 0;
+  root_inode_ptr->file_size = 0;
 
-int FileSystem::deleteDir(const std::string& dir_path) {
-  return fsm_.deleteFDE(dir_path, /*is_dir=*/true);
-}
+  in::BitSet inode_bitset(superblock.inode_num, ffile_content + superblock.InodeBitSetOffset());
+  inode_bitset.setBit(0);
 
-bool FileSystem::existsFile(const std::string& file_path) {
-  uint64_t inode_id;
-
-  if (fsm_.getFDEInodeId(file_path, &inode_id)) {
+  if (munmap(ffile_content, superblock.FileSystemSize()) == -1) {
+    perror("munmap ffile failed");
     return -1;
   }
 
-  return !fsm_.getInodeById(inode_id).is_dir;
+  return 0;
 }
 
-int FileSystem::createFile(const std::string& file_path) {
-  return fsm_.createFDE(file_path, /*is_dir=*/false);
+// todo: remove abort
+FileSystem::FileSystem(const std::string& ffile_path) {
+  int fd = open(ffile_path.c_str(), O_RDWR);
+  if (fd == -1) {
+    if (errno != ENOENT) {
+      FSPP_HANDLE_ERROR("Can't open ffile");
+    }
+
+    FSPP_LOG("FSM", "No ffile found. Creating default ffile.");
+
+    fd = open(ffile_path.c_str(), O_CREAT | O_RDWR | O_TRUNC, 0600);
+    if (fd == -1) {
+      FSPP_HANDLE_ERROR("Can't open ffile");
+    }
+
+    in::SuperBlock super_block = {.block_num = DEFAULT_BLOCK_COUNT,
+                                  .free_block_num = super_block.block_num,
+                                  .inode_num = DEFAULT_INODE_COUNT,
+                                  .free_inode_num = super_block.inode_num};
+
+    if (ftruncate(fd, super_block.FileSystemSize()) == -1) {
+      FSPP_HANDLE_ERROR("Truncation failed");
+    }
+    auto* file_start = static_cast<in::SuperBlock*>(
+        mmap64(nullptr, sizeof(in::SuperBlock), PROT_WRITE | PROT_READ, MAP_SHARED, fd, 0));
+    if (file_start == MAP_FAILED) {
+      FSPP_HANDLE_ERROR("Can't mmap truncated file");
+    }
+
+    *file_start = super_block;
+    if (munmap(file_start, sizeof(in::SuperBlock)) == -1) {
+      FSPP_HANDLE_ERROR("munmap truncated file failed");
+    }
+
+    if (initRootInode(fd, super_block) < 0) {
+      std::abort();
+    }
+  }
+
+  auto* file_start =
+      static_cast<in::SuperBlock*>(mmap64(nullptr, sizeof(in::SuperBlock), PROT_READ, MAP_SHARED, fd, 0));
+  if (file_start == MAP_FAILED) {
+    FSPP_HANDLE_ERROR("Can't mmap metadata for read");
+  }
+
+  in::SuperBlock super_block = *file_start;
+  if (munmap(file_start, sizeof(in::SuperBlock)) == -1) {
+    FSPP_HANDLE_ERROR("munmap metadata failed");
+  }
+
+  FSPP_LOG("FSM", "Initializing fsm object.");
+  file_bytes_ =
+      static_cast<uint8_t*>(mmap64(nullptr, super_block.FileSystemSize(), PROT_WRITE | PROT_READ, MAP_SHARED, fd, 0));
+
+  if (file_bytes_ == MAP_FAILED) {
+    FSPP_HANDLE_ERROR("Can't mmap ffile");
+  }
+
+  super_block_ptr_ = reinterpret_cast<internal::SuperBlock*>(file_bytes_);
+  blocks_ = in::BlockSpace(&super_block_ptr_->block_num, &super_block_ptr_->free_block_num,
+                           file_bytes_ + super_block_ptr_->BlockBitSetOffset(),
+                           reinterpret_cast<internal::Block*>(file_bytes_ + super_block_ptr_->BlocksOffset()));
+  inodes_ = in::InodeSpace(&super_block_ptr_->inode_num, &super_block_ptr_->free_inode_num,
+                           file_bytes_ + super_block_ptr_->InodeBitSetOffset(), &blocks_,
+                           reinterpret_cast<internal::Inode*>(file_bytes_ + super_block_ptr_->InodesOffset()));
 }
 
-int FileSystem::deleteFile(const std::string& file_path) {
-  return fsm_.deleteFDE(file_path, /*is_dir=*/false);
+FileSystem::~FileSystem() {
+  FSPP_LOG("FSM", "Destroying fsm object.");
+  if (munmap(file_bytes_, super_block_ptr_->FileSystemSize()) == -1) {
+    FSPP_HANDLE_ERROR("Can't unmap ffile");
+  }
 }
 
-int FileSystem::readFileContent(const std::string& file_path, uint64_t offset, void* buffer, uint64_t size) {
-  uint64_t inode_id;
-  if (fsm_.getFDEInodeId(file_path, &inode_id) < 0) {
+int FileSystem::deleteInode(uint64_t inode_id) {
+  inodes_.deleteInode(inode_id);
+  return 0;
+}
+
+int FileSystem::getFDEInodeId(std::string fde_path, uint64_t* result_ptr) {
+  if (fde_path == "/") {
+    *result_ptr = 0;
+    return 0;
+  }
+
+  assert(fde_path[0] == '/');
+  assert(fde_path[fde_path.size() - 1] != '/');
+
+  const char* next_name_ptr = fde_path.c_str() + 1;
+  const char* next_name_end = strchr(next_name_ptr, '/');
+
+  uint64_t current_inode_id = 0;
+  while (next_name_end != nullptr) {
+    uint64_t next_name_len = next_name_end - next_name_ptr;
+
+    char* name = new char[next_name_len + 1];
+
+    memcpy(name, next_name_ptr, next_name_len);
+    name[next_name_len] = 0;
+
+    uint64_t child_id = 0;
+    if (getChildId(inodes_.getInodeById(current_inode_id), std::string(name), &child_id) < 0) {
+      delete[] name;
+      return -1;
+    }
+
+    delete[] name;
+
+    current_inode_id = child_id;
+    next_name_ptr = next_name_end + 1;
+    next_name_end = strchr(next_name_ptr, '/');
+  }
+
+  uint64_t child_id = 0;
+  if (getChildId(inodes_.getInodeById(current_inode_id), std::string(next_name_ptr), &child_id) < 0) {
     return -1;
   }
 
-  return fsm_.read(&fsm_.getInodeById(inode_id), buffer, offset, size);
+  *result_ptr = child_id;
+  return 0;
 }
 
-int FileSystem::writeFileContent(const std::string& file_path, uint64_t offset, const void* buffer, uint64_t size) {
-  uint64_t inode_id;
-  if (fsm_.getFDEInodeId(file_path, &inode_id) < 0) {
-    return -1;
+bool FileSystem::existsChild(internal::Inode& parent_inode, const std::string& name) {
+  for (uint64_t i = 0; i * sizeof(Link) < parent_inode.file_size; ++i) {
+    Link link;
+    inodes_.read(&parent_inode, &link, i * sizeof(Link), sizeof(Link));
+    if (strcmp(link.name, name.c_str()) == 0 && link.is_alive) {
+      return true;
+    }
   }
-
-  return fsm_.write(&fsm_.getInodeById(inode_id), buffer, offset, size);
+  return false;
 }
 
-int FileSystem::listDir(const std::string& dir_path, std::string& output) {
-  if (!existsDir(dir_path)) {
+int FileSystem::getChildId(internal::Inode& parent_inode, const std::string& name, uint64_t* result_ptr) {
+  for (uint64_t i = 0; i * sizeof(Link) < parent_inode.file_size; ++i) {
+    Link link;
+    inodes_.read(&parent_inode, &link, i * sizeof(Link), sizeof(Link));
+    if (strcmp(link.name, name.c_str()) == 0 && link.is_alive) {
+      *result_ptr = link.inode_id;
+      return 0;
+    }
+  }
+
+  return -1;
+}
+
+int FileSystem::createChild(internal::Inode& parent_inode, const std::string& name, bool is_dir) {
+  assert(name.size() <= MAX_LINK_NAME_LEN);
+
+  if (existsChild(parent_inode, name)) {
     return -1;
   }
 
-  uint64_t inode_id;
-  if (fsm_.getFDEInodeId(dir_path, &inode_id) < 0) {
+  if (inodes_.addDirectoryEntry(&parent_inode, name.c_str(), is_dir) < 0) {
     return -1;
   }
-  internal::Inode& inode = fsm_.getInodeById(inode_id);
 
-  output.clear();
+#ifdef REDUNDANT_CHECKS
+  uint64_t child_id;
+  assert(getChildId(parent_inode, name, &child_id) >= 0);
+#endif
 
-  for (uint64_t i = 0; i * sizeof(internal::Link) < inode.file_size; ++i) {
-    internal::Link link;
-    fsm_.read(&inode, &link, i * sizeof(internal::Link), sizeof(internal::Link));
-    if (link.is_alive) {
-      output += std::string(link.name) + ((fsm_.getInodeById(link.inode_id).is_dir) ? "/ " : " ");
+  return 0;
+}
+
+int FileSystem::read(Inode* inode_ptr, void* buffer, uint64_t offset, uint64_t count) const {
+  return inodes_.read(inode_ptr, buffer, offset, count);
+}
+
+int FileSystem::write(Inode* inode_ptr, const void* buffer, uint64_t offset, uint64_t count) {
+  return inodes_.write(inode_ptr, buffer, offset, count);
+}
+
+int FileSystem::append(Inode* inode_ptr, const void* buffer, uint64_t count) {
+  return inodes_.append(inode_ptr, buffer, count);
+}
+
+Inode& FileSystem::getInodeById(uint64_t inode_id) {
+  return inodes_.getInodeById(inode_id);
+}
+
+int FileSystem::createFDE(const std::string& fde_path, bool is_dir) {
+  if (existsFDE(fde_path)) {
+    return -1;
+  }
+
+  assert(fde_path[0] == '/');
+  assert(fde_path[fde_path.size() - 1] != '/');
+
+  const char* next_name_ptr = fde_path.c_str() + 1;
+  const char* next_name_end = strchr(next_name_ptr, '/');
+
+  uint64_t current_inode_id = 0;
+  while (next_name_end != nullptr) {
+    uint64_t next_name_len = next_name_end - next_name_ptr;
+
+    char* name = new char[next_name_len + 1];
+
+    memcpy(name, next_name_ptr, next_name_len);
+    name[next_name_len] = 0;
+
+    uint64_t child_id = 0;
+    in::Inode& current_inode = inodes_.getInodeById(current_inode_id);
+    if (!existsChild(current_inode, name)) {
+      if (createChild(current_inode, name, true) < 0) {
+        delete[] name;
+        return -1;
+      }
+    }
+
+    if (getChildId(current_inode, std::string(name), &child_id) < 0) {
+      delete[] name;
+      return -1;
+    }
+
+    delete[] name;
+
+    current_inode_id = child_id;
+    next_name_ptr = next_name_end + 1;
+    next_name_end = strchr(next_name_ptr, '/');
+  }
+
+  Inode& current_inode = getInodeById(current_inode_id);
+  if (!existsChild(current_inode, next_name_ptr)) {
+    if (createChild(current_inode, next_name_ptr, is_dir) < 0) {
+      return -1;
     }
   }
 
   return 0;
 }
 
-}  // namespace fspp
+bool FileSystem::existsFDE(const std::string& fde_path) {
+  uint64_t inode_id;
+  return getFDEInodeId(fde_path, &inode_id) >= 0;
+}
+
+int FileSystem::deleteFDE(const std::string& fde_path, bool is_dir) {
+  if (fde_path == "/") {
+    return -1;
+  }
+
+  uint64_t inode_id;
+  if (getFDEInodeId(fde_path, &inode_id) < 0 || getInodeById(inode_id).is_dir != is_dir) {
+    return -1;
+  }
+
+  if (deleteInode(inode_id) < 0) {
+    return -1;
+  }
+
+  uint64_t parent_inode_id;
+  assert(getFDEInodeParentId(fde_path, &parent_inode_id) >= 0);
+
+  Inode& parent_inode = getInodeById(parent_inode_id);
+  for (uint64_t i = 0; i * sizeof(Link) < parent_inode.file_size; ++i) {
+    Link link;
+    read(&parent_inode, &link, i * sizeof(Link), sizeof(Link));
+    if (link.inode_id == inode_id) {
+      assert(link.is_alive);
+      link.is_alive = false;
+      if (write(&parent_inode, &link, i * sizeof(Link), sizeof(Link)) < 0) {
+        return -1;
+      }
+
+      break;
+    }
+  }
+
+  return 0;
+}
+
+int FileSystem::getFDEInodeParentId(std::string fde_path, uint64_t* result_ptr) {
+  if (fde_path == "/") {
+    return -1;
+  }
+
+  assert(fde_path[0] == '/');
+  assert(fde_path[fde_path.size() - 1] != '/');
+
+  const char* next_name_ptr = fde_path.c_str() + 1;
+  const char* next_name_end = strchr(next_name_ptr, '/');
+
+  uint64_t current_inode_id = 0;
+  while (next_name_end != nullptr) {
+    uint64_t next_name_len = next_name_end - next_name_ptr;
+
+    char* name = new char[next_name_len + 1];
+
+    memcpy(name, next_name_ptr, next_name_len);
+    name[next_name_len] = 0;
+
+    uint64_t child_id = 0;
+    if (getChildId(inodes_.getInodeById(current_inode_id), std::string(name), &child_id) < 0) {
+      delete[] name;
+      return -1;
+    }
+
+    delete[] name;
+
+    current_inode_id = child_id;
+    next_name_ptr = next_name_end + 1;
+    next_name_end = strchr(next_name_ptr, '/');
+  }
+
+  *result_ptr = current_inode_id;
+  return 0;
+}
+
+int FileSystem::listDir(const std::string& dir_path, std::string& output) {
+  uint64_t inode_id;
+  if (getFDEInodeId(dir_path, &inode_id) < 0 || !getInodeById(inode_id).is_dir) {
+    return -1;
+  }
+
+  internal::Inode& inode = getInodeById(inode_id);
+
+  output.clear();
+
+  for (uint64_t i = 0; i * sizeof(internal::Link) < inode.file_size; ++i) {
+    internal::Link link;
+    read(&inode, &link, i * sizeof(internal::Link), sizeof(internal::Link));
+    if (link.is_alive) {
+      output += std::string(link.name) + ((getInodeById(link.inode_id).is_dir) ? "/ " : " ");
+    }
+  }
+
+  return 0;
+}
+
+}  // namespace fspp::internal

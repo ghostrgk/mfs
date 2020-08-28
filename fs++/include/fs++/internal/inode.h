@@ -22,6 +22,7 @@ class InodesList {
   IndirectionLevel2 level2_;
 };
 #else
+#include <cassert>
 class InodesList {
  public:
   [[nodiscard]] uint64_t getBlockIdByIndex(uint64_t index) const {
@@ -100,13 +101,13 @@ class InodeSpace {
    * @return on success, the number of bytes written is returned. on error, -1 is returned.
    */
   int write(Inode* inode_ptr, const void* buffer, uint64_t offset, uint64_t count);
-
   int append(Inode* inode_ptr, const void* buffer, uint64_t count);
 
  public:
-  uint64_t createInode();
   static int addBlockToInode(Inode& inode, uint64_t block_id);
+  uint64_t createInode();
   void deleteInode(uint64_t inode_id);
+
   /*!
    * @note doesn't check possible existence of the entry
    */
@@ -116,28 +117,8 @@ class InodeSpace {
 
  private:
   int clearInode(Inode* inode_ptr);
-
-  Block& getBlockByIndex(Inode& inode, uint64_t index) const {
-    return blocks_->getBlockById(inode.inodes_list.getBlockIdByIndex(index));
-  }
-
-  int extend(Inode& inode, uint64_t new_size) {
-    uint64_t exact_block_count = (new_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    if (exact_block_count - inode.blocks_count > blocks_->getFreeBlockNum() ||
-        exact_block_count > inode.inodes_list.max_size()) {
-      return -1;
-    }
-
-    while (inode.blocks_count != exact_block_count) {
-      if (addBlockToInode(inode, blocks_->createBlock()) < 0) {
-        return -1;
-      }
-    }
-
-    inode.file_size = new_size;
-
-    return 0;
-  }
+  Block& getBlockByIndex(Inode& inode, uint64_t index) const;
+  int extend(Inode& inode, uint64_t new_size);
 
  private:
   uint64_t* inode_num_ptr_{nullptr};

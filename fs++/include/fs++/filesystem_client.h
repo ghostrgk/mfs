@@ -2,13 +2,13 @@
 
 #include <string>
 
-#include "internal/fs_manager.h"
+#include "internal/filesystem.h"
 
 namespace fspp {
 
-class FileSystem {
+class FileSystemClient {
  public:
-  explicit FileSystem(const std::string& ffile_path);
+  explicit FileSystemClient(const std::string& ffile_path);
 
   bool existsDir(const std::string& dir_path);
   int createDir(const std::string& dir_path);
@@ -23,7 +23,7 @@ class FileSystem {
   int writeFileContent(const std::string& file_path, uint64_t offset, const void* buffer, uint64_t size);
 
  private:
-  internal::FSManager fsm_;
+  internal::FileSystem fs_;
 };
 
 }  // namespace fspp

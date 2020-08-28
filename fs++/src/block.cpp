@@ -1,5 +1,7 @@
 #include "fs++/internal/block.h"
 
+#include <cassert>
+
 namespace fspp::internal {
 
 BlockSpace::BlockSpace(uint64_t* block_num_ptr, uint64_t* free_block_num_ptr, uint8_t* bit_set_bytes,
@@ -29,6 +31,10 @@ void BlockSpace::deleteBlock(uint64_t block_id) {
 
   bit_set_.clearBit(block_id);
   ++(*free_block_num_ptr_);
+}
+
+uint64_t BlockSpace::getFreeBlockNum() {
+  return *free_block_num_ptr_;
 }
 
 }  // namespace fspp::internal

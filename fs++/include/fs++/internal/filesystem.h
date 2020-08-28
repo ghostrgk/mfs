@@ -8,32 +8,32 @@
 
 namespace fspp::internal {
 
-class FSManager {
+class FileSystem {
  public:
-  explicit FSManager(const std::string& ffile_path);
-  ~FSManager();
+  explicit FileSystem(const std::string& ffile_path);
+  ~FileSystem();
 
   int createFDE(const std::string& fde_path, bool is_dir);
-
   int getFDEInodeId(std::string fde_path, uint64_t* result_ptr);
-
   bool existsFDE(const std::string& fde_path);
-
   int deleteFDE(const std::string& fde_path, bool is_dir);
 
-  int deleteInode(uint64_t inode_id);
+  Inode& getInodeById(uint64_t inode_id);
+
+  int createChild(Inode& parent_inode, const std::string& name, bool is_dir);
   int getChildId(Inode& parent_inode, const std::string& name, uint64_t* result_ptr);
   bool existsChild(Inode& parent_inode, const std::string& name);
-  int createChild(Inode& parent_inode, const std::string& name, bool is_dir);
 
   int read(Inode* inode_ptr, void* buffer, uint64_t offset, uint64_t count) const;
   int write(Inode* inode_ptr, const void* buffer, uint64_t offset, uint64_t count);
   int append(Inode* inode_ptr, const void* buffer, uint64_t count);
 
-  Inode& getInodeById(uint64_t inode_id);
+  // maybe need to change interface
+  int listDir(const std::string& dir_path, std::string& output);
 
  private:
-  int getFDEInodeParentId(std::string fde_path, uint64_t* result_ptr) ;
+  int getFDEInodeParentId(std::string fde_path, uint64_t* result_ptr);
+  int deleteInode(uint64_t inode_id);
 
  private:
   uint8_t* file_bytes_{nullptr};

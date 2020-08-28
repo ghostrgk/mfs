@@ -3,7 +3,7 @@
 #include <string>
 #include <regex>
 
-#include <fs++/filesystem.h>
+#include <fs++/filesystem_client.h>
 
 bool check_path(const std::string& string) {
   static const std::regex path_regex("(/\\w+)+");
@@ -29,7 +29,7 @@ int main(int argc, char** argv) {
 
   // filesystem init
   std::string filesystem_path(argv[1]);
-  fspp::FileSystem fs(filesystem_path);
+  fspp::FileSystemClient fs(filesystem_path);
 
   // help const
   const std::string help =
