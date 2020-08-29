@@ -6,17 +6,10 @@
 
 #include <fcntl.h>
 #include <sys/mman.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
 #include <fs++/filesystem_client.h>
-
-bool check_path(const std::string& string) {
-  static const std::regex path_regex("(/\\w+)+");
-  std::smatch path_match;
-  return std::regex_match(string, path_match, path_regex);
-}
 
 int mkfile(fspp::FileSystemClient& fs, const std::string& query) {
   static const std::regex full_regex(R"(^\s*mkfile\s+(/|((/[\w.]+)+))\s*$)");
@@ -176,7 +169,6 @@ int store(fspp::FileSystemClient& fs, const std::string& query) {
   std::cerr << "(from_path=" << from_path << ") ";
   std::cerr << "(to_path=" << to_path << ") ";
 
-
   const char* from_basename_start = strrchr(from_path.c_str(), '/') + 1;
   assert(from_basename_start != nullptr);
   std::string from_basename(from_basename_start);
@@ -191,7 +183,7 @@ int store(fspp::FileSystemClient& fs, const std::string& query) {
     return -1;
   }
 
-  struct stat stat_buf{};
+  struct stat stat_buf {};
   if (fstat(from_fd, &stat_buf) < 0) {
     std::cout << "Can't read from_file length" << std::endl;
 
@@ -238,6 +230,93 @@ int store(fspp::FileSystemClient& fs, const std::string& query) {
   return 0;
 }
 
+int load(fspp::FileSystemClient& fs, const std::string& query) {
+  static const std::regex full_regex(R"(^\s*load\s+(/|(/[\w.]+)+)\s+(/|(/[\w.]+)+)\s*$)");
+  std::cerr << "load command: ";
+
+  std::smatch match;
+  if (!std::regex_match(query, match, full_regex)) {
+    std::cout << "Wrong from_path or to_path format" << std::endl;
+    return -1;
+  }
+
+  const std::string& from_path = match[1];
+  std::string to_path = match[3];
+  std::cerr << "(from_path=" << from_path << ") ";
+  std::cerr << "(to_path=" << to_path << ") ";
+
+  if (!fs.existsFile(from_path)) {
+    std::cout << "Requested file doesn't exist" << std::endl;
+    return -1;
+  }
+
+  const char* from_basename_start = strrchr(from_path.c_str(), '/') + 1;
+  assert(from_basename_start != nullptr);
+  std::string from_basename(from_basename_start);
+
+  int to_fd = open(to_path.c_str(), O_RDWR);
+  if (to_fd < 0) {
+    if (errno != ENOENT) {
+      std::cout << "Can't open to_file/to_directory" << std::endl;
+      return -1;
+    }
+
+    to_fd = open(to_path.c_str(), O_CREAT | O_RDWR | O_TRUNC, 0640);
+    if (to_fd < 0) {
+      std::cout << "Can't create to_file" << std::endl;
+      return -1;
+    }
+  }
+
+  struct stat stat_buf {};
+  if (fstat(to_fd, &stat_buf) < 0) {
+    std::cout << "Can't read to_file stat" << std::endl;
+
+    close(to_fd);
+    return -1;
+  }
+
+  if (S_ISDIR(stat_buf.st_mode)) {
+    to_path += from_basename;
+    close(to_fd);
+    to_fd = open(to_path.c_str(), O_RDWR);
+    if (to_fd < 0) {
+      if (errno != ENOENT) {
+        std::cout << "Can't open to_file" << std::endl;
+        return -1;
+      }
+
+      to_fd = open(to_path.c_str(), O_CREAT | O_RDWR | O_TRUNC, 0640);
+      if (to_fd < 0) {
+        std::cout << "Can't create to_file" << std::endl;
+        return -1;
+      }
+    }
+  }
+
+  uint64_t from_file_len = fs.fileSize(from_path);
+  ftruncate(to_fd, from_file_len);
+  void* to_file_content = mmap64(nullptr, from_file_len, PROT_WRITE, MAP_SHARED, to_fd, 0);
+
+  int bytes_read = fs.readFileContent(from_path, 0, to_file_content, from_file_len);
+  if (bytes_read == -1) {
+    std::cout << "Can't write to app filesystem" << std::endl;
+
+    munmap(to_file_content, from_file_len);
+    close(to_fd);
+    return -1;
+  }
+
+  if ((uint64_t)bytes_read != from_file_len) {
+    std::cerr << "possible file corruption" << std::endl;
+  }
+
+  munmap(to_file_content, from_file_len);
+  close(to_fd);
+
+  return 0;
+}
+
 template <typename T>
 void printSizes(T& os) {
   os << "Inode size: " << sizeof(fspp::internal::Inode) << std::endl;
@@ -279,7 +358,7 @@ int main(int argc, char** argv) {
   const std::regex rmdir_cmd_regex(R"(^\s*rmdir\s+)");
   const std::regex lsdir_cmd_regex(R"(^\s*lsdir\s+)");
   const std::regex store_cmd_regex(R"(^\s*store\s+)");
-  const std::regex load_regex(R"(^\s*load\s*([\w/]+)\s+([\w/]+)\s*$)");
+  const std::regex load_cmd_regex(R"(^\s*load\s+)");
 
   // main loop
   while (true) {
@@ -318,21 +397,10 @@ int main(int argc, char** argv) {
       int result = store(fs, input);
       std::cerr << (result < 0 ? "fail" : "success") << std::endl;
 
+    } else if (std::regex_search(input, match, load_cmd_regex)) {
+      int result = load(fs, input);
+      std::cerr << (result < 0 ? "fail" : "success") << std::endl;
 
-    } else if (std::regex_match(input, match, load_regex)) {
-      std::cerr << "load command: ";
-
-      std::cout << "command is not implemented yet" << std::endl;
-
-      const auto& from_path = match[1].str();
-      const auto& to_path = match[2].str();
-      if (!check_path(from_path) || !check_path(to_path)) {
-        std::cout << "Wrong from or to path format" << std::endl;
-        std::cerr << "continuing" << std::endl;
-        continue;
-      }
-
-      std::cerr << "success" << std::endl;
     } else if (std::regex_match(input, match, help_regex)) {
       std::cerr << "help command" << std::endl;
       std::cout << help << std::endl;
