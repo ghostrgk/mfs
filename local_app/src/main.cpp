@@ -322,6 +322,8 @@ int main(int argc, char** argv) {
     } else if (std::regex_match(input, match, load_regex)) {
       std::cerr << "load command: ";
 
+      std::cout << "command is not implemented yet" << std::endl;
+
       const auto& from_path = match[1].str();
       const auto& to_path = match[2].str();
       if (!check_path(from_path) || !check_path(to_path)) {

@@ -1,16 +1,17 @@
 #include <fs++/internal/inode.h>
 
 #include <cstring>
+#include <cassert>
 
 #include <fs++/internal/logging.h>
 
 namespace fspp::internal {
 
-InodeSpace::InodeSpace(uint64_t* inode_num_ptr, uint64_t* free_inode_num_ptr, uint8_t* bit_set_bytes,
+InodeSpace::InodeSpace(const uint64_t* inode_num_ptr, uint64_t* free_inode_num_ptr, uint8_t* bit_set_bytes,
                        BlockSpace* blocks, Inode* inode_bytes)
-    : inode_num_ptr_(inode_num_ptr),
+    : /*inode_num_ptr_(inode_num_ptr),*/
       free_inode_num_ptr_(free_inode_num_ptr),
-      bit_set_(*inode_num_ptr_, bit_set_bytes),
+      bit_set_(*inode_num_ptr, bit_set_bytes),
       blocks_(blocks),
       inodes_(inode_bytes) {
 }
@@ -41,6 +42,10 @@ int InodeSpace::read(Inode* inode_ptr, void* buffer, uint64_t offset, uint64_t c
     buffer_offset += start_size;
 
     ++block_index;
+  }
+
+  if (buffer_offset == count) {
+    return buffer_offset;
   }
 
   assert(offset % BLOCK_SIZE == 0);
@@ -88,6 +93,10 @@ int InodeSpace::write(Inode* inode_ptr, const void* buffer, uint64_t offset, uin
     buffer_offset += start_size;
 
     ++block_index;
+  }
+
+  if (buffer_offset == count) {
+    return buffer_offset;
   }
 
   assert(offset % BLOCK_SIZE == 0);
@@ -138,7 +147,7 @@ void InodeSpace::deleteInode(uint64_t inode_id) {
 
   auto& inode = getInodeById(inode_id);
   for (uint64_t i = 0; i < inode.blocks_count; ++i) {
-    blocks_->deleteBlock(inode.inodes_list.getBlockIdByIndex(i));
+    blocks_->deleteBlock(inode.inodes_list.getBlockIdByIndex(blocks_, i));
   }
   bit_set_.clearBit(inode_id);
 
@@ -174,7 +183,7 @@ int InodeSpace::addDirectoryEntry(Inode* inode_ptr, const char* name, bool is_di
 }
 
 int InodeSpace::addBlockToInode(Inode& inode, uint64_t block_id) {
-  if (inode.inodes_list.addBlock(block_id) < 0) {
+  if (inode.inodes_list.addBlock(blocks_, block_id) < 0) {
     return -1;
   }
 
@@ -195,7 +204,7 @@ int InodeSpace::clearInode(Inode* inode_ptr) {
 }
 
 Block& InodeSpace::getBlockByIndex(Inode& inode, uint64_t index) const {
-  return blocks_->getBlockById(inode.inodes_list.getBlockIdByIndex(index));
+  return blocks_->getBlockById(inode.inodes_list.getBlockIdByIndex(blocks_, index));
 }
 
 int InodeSpace::extend(Inode& inode, uint64_t new_size) {
@@ -216,10 +225,4 @@ int InodeSpace::extend(Inode& inode, uint64_t new_size) {
   return 0;
 }
 
-#ifdef NORMAL_ILIST
-uint64_t InodesList::getBlockIdByIndex(uint64_t index) {
-  assert(index < 10);
-  return block_ids_[index];
-}
-#endif
 }  // namespace fspp::internal

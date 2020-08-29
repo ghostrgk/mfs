@@ -4,28 +4,15 @@
 #include "bitset.h"
 #include "block.h"
 
-#ifndef NORMAL_ILIST
-#include <cassert>
+#ifdef NORMAL_ILIST
+
+#include "ilist.h"
+
 #endif
 
 namespace fspp::internal {
 
-#ifdef NORMAL_ILIST
-class InodesList {
- public:
-  uint64_t getBlockIdByIndex(uint64_t index);
-  uint64_t size() const;
-
- private:
-  class IndirectionLevel1 {};
-
-  class IndirectionLevel2 {};
-
-  uint64_t block_ids_[10];
-  IndirectionLevel1 level1_;
-  IndirectionLevel2 level2_;
-};
-#else
+#ifndef NORMAL_ILIST
 class InodesList {
  public:
   [[nodiscard]] uint64_t getBlockIdByIndex(uint64_t index) const {
@@ -81,7 +68,7 @@ struct Inode {
 class InodeSpace {
  public:
   InodeSpace() = default;
-  InodeSpace(uint64_t* inode_num_ptr, uint64_t* free_inode_num_ptr, uint8_t* bit_set_bytes, BlockSpace* blocks,
+  InodeSpace(const uint64_t* inode_num_ptr, uint64_t* free_inode_num_ptr, uint8_t* bit_set_bytes, BlockSpace* blocks,
              Inode* inode_bytes);
 
   Inode& getInodeById(uint64_t inode_id);
@@ -107,7 +94,7 @@ class InodeSpace {
   int append(Inode* inode_ptr, const void* buffer, uint64_t count);
 
  public:
-  static int addBlockToInode(Inode& inode, uint64_t block_id);
+  int addBlockToInode(Inode& inode, uint64_t block_id);
   uint64_t createInode();
   void deleteInode(uint64_t inode_id);
 
@@ -124,7 +111,7 @@ class InodeSpace {
   int extend(Inode& inode, uint64_t new_size);
 
  private:
-  uint64_t* inode_num_ptr_{nullptr};
+  //uint64_t* inode_num_ptr_{nullptr}; todo: necessary?
   uint64_t* free_inode_num_ptr_{nullptr};
   BitSet bit_set_{};
 

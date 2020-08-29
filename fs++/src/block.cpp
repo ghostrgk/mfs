@@ -4,15 +4,15 @@
 
 namespace fspp::internal {
 
-BlockSpace::BlockSpace(uint64_t* block_num_ptr, uint64_t* free_block_num_ptr, uint8_t* bit_set_bytes,
+BlockSpace::BlockSpace(const uint64_t* block_num_ptr, uint64_t* free_block_num_ptr, uint8_t* bit_set_bytes,
                        Block* block_bytes)
-    : block_num_ptr_(block_num_ptr),
+    : /*block_num_ptr_(block_num_ptr),*/
       free_block_num_ptr_(free_block_num_ptr),
       bit_set_(*block_num_ptr, bit_set_bytes),
       blocks_(block_bytes) {
 }
 
-uint64_t BlockSpace::createBlock() {
+id_t BlockSpace::createBlock() {
   assert(*free_block_num_ptr_ != 0);
   --(*free_block_num_ptr_);
 
