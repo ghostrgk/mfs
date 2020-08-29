@@ -12,7 +12,7 @@ BitSet::BitSet() {
   bytes_ = nullptr;
 }
 
-BitSet::BitSet(uint64_t element_num) : element_num_(element_num) {
+BitSet::BitSet(uint64_t element_num) : has_ownership_(true), element_num_(element_num) {
   assert(element_num_ % 8 == 0);
 
   uint64_t bitset_size = element_num_ / 8;
