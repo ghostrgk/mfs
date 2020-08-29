@@ -25,7 +25,6 @@ class BlockSpace {
   uint64_t getFreeBlockNum();
 
  private:
-//  uint64_t* block_num_ptr_{nullptr}; // todo: necessary?
   uint64_t* free_block_num_ptr_{nullptr};
   BitSet bit_set_{};
 

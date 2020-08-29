@@ -191,7 +191,7 @@ int InodeSpace::addBlockToInode(Inode& inode, uint64_t block_id) {
   return 0;
 }
 
-int InodeSpace::gcLaterRename(uint64_t) {
+[[maybe_unused]] int InodeSpace::gcLaterRename(uint64_t) {
   return 0;
 }
 
@@ -210,7 +210,7 @@ Block& InodeSpace::getBlockByIndex(Inode& inode, uint64_t index) const {
 int InodeSpace::extend(Inode& inode, uint64_t new_size) {
   uint64_t exact_block_count = (new_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
   if (exact_block_count - inode.blocks_count > blocks_->getFreeBlockNum() ||
-      exact_block_count > inode.inodes_list.max_size()) {
+      exact_block_count > InodesList::max_size()) {
     return -1;
   }
 

@@ -155,7 +155,7 @@ int lsdir(fspp::FileSystemClient& fs, const std::string& query) {
 }
 
 int store(fspp::FileSystemClient& fs, const std::string& query) {
-  static const std::regex full_regex(R"(^\s*store\s+(/|(/[\w.]+)+)\s+(/|(/[\w.]+)+)\s*$)");
+  static const std::regex full_regex(R"(^\s*store\s+(/|(/[-\d\w.]+)+)\s+(/|(/[-\d\w.]+)+)\s*$)");
   std::cerr << "store command: ";
 
   std::smatch match;

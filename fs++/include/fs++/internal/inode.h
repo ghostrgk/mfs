@@ -103,15 +103,14 @@ class InodeSpace {
    */
   int addDirectoryEntry(Inode* inode_ptr, const char* name, bool is_dir);
 
-  int gcLaterRename(uint64_t inode_id);
+  [[maybe_unused]] static int gcLaterRename(uint64_t inode_id);
 
  private:
-  int clearInode(Inode* inode_ptr);
+  static int clearInode(Inode* inode_ptr);
   Block& getBlockByIndex(Inode& inode, uint64_t index) const;
   int extend(Inode& inode, uint64_t new_size);
 
  private:
-  //uint64_t* inode_num_ptr_{nullptr}; todo: necessary?
   uint64_t* free_inode_num_ptr_{nullptr};
   BitSet bit_set_{};
 
