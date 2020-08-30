@@ -11,10 +11,10 @@ struct Block {
 
 static_assert(sizeof(Block) == BLOCK_SIZE);
 
-class BlockSpace {
+class Blocks {
  public:
-  BlockSpace() = default;
-  BlockSpace(const uint64_t* block_num_ptr, uint64_t* free_block_num_ptr, uint8_t* bit_set_bytes, Block* block_bytes);
+  Blocks() = default;
+  Blocks(const uint64_t* block_num_ptr, uint64_t* free_block_num_ptr, uint8_t* bit_set_bytes, Block* block_bytes);
 
   Block& getBlockById(uint64_t block_id);
 
@@ -28,7 +28,7 @@ class BlockSpace {
   uint64_t* free_block_num_ptr_{nullptr};
   BitSet bit_set_{};
 
-  Block* blocks_{nullptr};
+  Block* block_bytes_{nullptr};
 };
 
 }  // namespace fspp::internal

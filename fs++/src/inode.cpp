@@ -6,20 +6,20 @@
 
 namespace fspp::internal {
 
-InodeSpace::InodeSpace(const uint64_t* inode_num_ptr, uint64_t* free_inode_num_ptr, uint8_t* bit_set_bytes,
-                       BlockSpace* blocks, Inode* inode_bytes)
+Inodes::Inodes(const uint64_t* inode_num_ptr, uint64_t* free_inode_num_ptr, uint8_t* bit_set_bytes,
+                       Blocks* blocks, Inode* inode_bytes)
     : /*inode_num_ptr_(inode_num_ptr),*/
       free_inode_num_ptr_(free_inode_num_ptr),
       bit_set_(*inode_num_ptr, bit_set_bytes),
       blocks_(blocks),
-      inodes_(inode_bytes) {
+      inodes_ptr_(inode_bytes) {
 }
 
-Inode& InodeSpace::getInodeById(uint64_t inode_id) {
-  return inodes_[inode_id];
+Inode& Inodes::getInodeById(uint64_t inode_id) {
+  return inodes_ptr_[inode_id];
 }
 
-int InodeSpace::read(Inode* inode_ptr, void* buffer, uint64_t offset, uint64_t count) const {
+int Inodes::read(Inode* inode_ptr, void* buffer, uint64_t offset, uint64_t count) const {
   auto& inode = *inode_ptr;
   auto* byte_buffer = static_cast<uint8_t*>(buffer);
   uint64_t count_down = count;
@@ -63,7 +63,7 @@ int InodeSpace::read(Inode* inode_ptr, void* buffer, uint64_t offset, uint64_t c
   return buffer_offset;
 }
 
-int InodeSpace::write(Inode* inode_ptr, const void* buffer, uint64_t offset, uint64_t count) {
+int Inodes::write(Inode* inode_ptr, const void* buffer, uint64_t offset, uint64_t count) {
   auto& inode = *inode_ptr;
   const auto* byte_buffer = static_cast<const uint8_t*>(buffer);
   uint64_t count_down = count;
@@ -114,11 +114,11 @@ int InodeSpace::write(Inode* inode_ptr, const void* buffer, uint64_t offset, uin
   return buffer_offset;
 }
 
-int InodeSpace::append(Inode* inode_ptr, const void* buffer, uint64_t count) {
+int Inodes::append(Inode* inode_ptr, const void* buffer, uint64_t count) {
   return write(inode_ptr, buffer, inode_ptr->file_size, count);
 }
 
-uint64_t InodeSpace::createInode() {
+uint64_t Inodes::createInode() {
   assert(*free_inode_num_ptr_ != 0);
   --(*free_inode_num_ptr_);
 
@@ -130,7 +130,7 @@ uint64_t InodeSpace::createInode() {
   return id;
 }
 
-void InodeSpace::deleteInode(uint64_t inode_id) {
+void Inodes::deleteInode(uint64_t inode_id) {
   assert(bit_set_.getBit(inode_id));
 
   if (Inode& inode = getInodeById(inode_id); inode.is_dir) {
@@ -153,7 +153,7 @@ void InodeSpace::deleteInode(uint64_t inode_id) {
   ++(*free_inode_num_ptr_);
 }
 
-int InodeSpace::addDirectoryEntry(Inode* inode_ptr, const char* name, bool is_dir) {
+int Inodes::addDirectoryEntry(Inode* inode_ptr, const char* name, bool is_dir) {
   assert(strlen(name) <= MAX_LINK_NAME_LEN);
 
   uint64_t new_inode_id = createInode();
@@ -181,7 +181,7 @@ int InodeSpace::addDirectoryEntry(Inode* inode_ptr, const char* name, bool is_di
   return 0;
 }
 
-int InodeSpace::addBlockToInode(Inode& inode, uint64_t block_id) {
+int Inodes::addBlockToInode(Inode& inode, uint64_t block_id) {
   if (inode.inodes_list.addBlock(blocks_, block_id) < 0) {
     return -1;
   }
@@ -190,11 +190,11 @@ int InodeSpace::addBlockToInode(Inode& inode, uint64_t block_id) {
   return 0;
 }
 
-[[maybe_unused]] int InodeSpace::gcLaterRename(uint64_t) {
+[[maybe_unused]] int Inodes::gcLaterRename(uint64_t) {
   return 0;
 }
 
-int InodeSpace::clearInode(Inode* inode_ptr) {
+int Inodes::clearInode(Inode* inode_ptr) {
   inode_ptr->inodes_list.clear();
   inode_ptr->file_size = 0;
   inode_ptr->blocks_count = 0;
@@ -202,11 +202,11 @@ int InodeSpace::clearInode(Inode* inode_ptr) {
   return 0;
 }
 
-Block& InodeSpace::getBlockByIndex(Inode& inode, uint64_t index) const {
+Block& Inodes::getBlockByIndex(Inode& inode, uint64_t index) const {
   return blocks_->getBlockById(inode.inodes_list.getBlockIdByIndex(blocks_, index));
 }
 
-int InodeSpace::extend(Inode& inode, uint64_t new_size) {
+int Inodes::extend(Inode& inode, uint64_t new_size) {
   uint64_t exact_block_count = (new_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
   if (exact_block_count - inode.blocks_count > blocks_->getFreeBlockNum() ||
       exact_block_count > InodesList::max_size()) {

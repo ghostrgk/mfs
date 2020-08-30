@@ -15,11 +15,11 @@ class InodesList {
    * @param index index of id in the block
    * @return block id from block
    */
-  static uint64_t& resolveIndirection(BlockSpace* blocks, uint64_t block_id, uint64_t index) {
+  static uint64_t& resolveIndirection(Blocks* blocks, uint64_t block_id, uint64_t index) {
     return ((uint64_t*)blocks->getBlockById(block_id).bytes)[index];
   }
 
-  uint64_t getBlockIdByIndex(BlockSpace* blocks, uint64_t index);
+  uint64_t getBlockIdByIndex(Blocks* blocks, uint64_t index);
 
   [[nodiscard]] uint64_t size() const {
     return size_;
@@ -36,7 +36,7 @@ class InodesList {
     size_ = new_size;
   }
 
-  int addBlock(BlockSpace* blocks, uint64_t block_id);
+  int addBlock(Blocks* blocks, uint64_t block_id);
 
  private:
   uint64_t size_{0};

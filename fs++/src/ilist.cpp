@@ -3,7 +3,7 @@
 namespace fspp::internal {
 
 #ifdef NORMAL_ILIST
-uint64_t InodesList::getBlockIdByIndex(BlockSpace* blocks, uint64_t index) {
+uint64_t InodesList::getBlockIdByIndex(Blocks* blocks, uint64_t index) {
   assert(index < size_);
   if (index < ILIST_ZERO_INDIRECTION) {
     return block_ids_[index];
@@ -25,7 +25,7 @@ uint64_t InodesList::getBlockIdByIndex(BlockSpace* blocks, uint64_t index) {
   return resolveIndirection(blocks, resolved_level1_id, index);
 }
 
-int InodesList::addBlock(BlockSpace* blocks, uint64_t block_id) {
+int InodesList::addBlock(Blocks* blocks, uint64_t block_id) {
   if (size_ + 1 == INODE_MAX_BLOCK_COUNT) {
     return -1;
   }

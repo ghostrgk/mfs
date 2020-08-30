@@ -39,8 +39,8 @@ class FileSystem {
   int fd_{-1};
   uint8_t* file_bytes_{nullptr};
   internal::SuperBlock* super_block_ptr_;
-  internal::InodeSpace inodes_;
-  internal::BlockSpace blocks_;
+  internal::Inodes inodes_;
+  internal::Blocks blocks_;
 };
 
 }  // namespace fspp::internal

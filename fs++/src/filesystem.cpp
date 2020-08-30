@@ -19,7 +19,7 @@ namespace fspp::internal {
 namespace in = internal;
 using internal::Link;
 
-static int initRootInode(int ffile_fd, in::SuperBlock& superblock) {
+static int initRootInode(int ffile_fd, SuperBlock& superblock) {
   auto* ffile_content = static_cast<uint8_t*>(
       mmap64(nullptr, superblock.FileSystemSize(), PROT_WRITE | PROT_READ, MAP_SHARED, ffile_fd, 0));
 
@@ -28,16 +28,16 @@ static int initRootInode(int ffile_fd, in::SuperBlock& superblock) {
     return -1;
   }
 
-  auto* superblock_ptr = reinterpret_cast<in::SuperBlock*>(ffile_content);
+  auto* superblock_ptr = reinterpret_cast<SuperBlock*>(ffile_content);
   --(superblock_ptr->free_inode_num);
 
-  auto* root_inode_ptr = reinterpret_cast<in::Inode*>(ffile_content + superblock.InodesOffset());
+  auto* root_inode_ptr = reinterpret_cast<Inode*>(ffile_content + superblock.InodesOffset());
   root_inode_ptr->is_dir = true;
   root_inode_ptr->inodes_list.setSize(0);
   root_inode_ptr->blocks_count = 0;
   root_inode_ptr->file_size = 0;
 
-  in::BitSet inode_bitset(superblock.inode_num, ffile_content + superblock.InodeBitSetOffset());
+  BitSet inode_bitset(superblock.inode_num, ffile_content + superblock.InodeBitSetOffset());
   inode_bitset.setBit(0);
 
   if (munmap(ffile_content, superblock.FileSystemSize()) == -1) {
@@ -63,7 +63,7 @@ FileSystem::FileSystem(const std::string& ffile_path) {
       FSPP_HANDLE_ERROR("Can't open ffile");
     }
 
-    in::SuperBlock super_block = {.block_num = DEFAULT_BLOCK_COUNT,
+    SuperBlock super_block = {.block_num = DEFAULT_BLOCK_COUNT,
                                   .free_block_num = super_block.block_num,
                                   .inode_num = DEFAULT_INODE_COUNT,
                                   .free_inode_num = super_block.inode_num};
@@ -71,14 +71,14 @@ FileSystem::FileSystem(const std::string& ffile_path) {
     if (ftruncate(fd_, super_block.FileSystemSize()) == -1) {
       FSPP_HANDLE_ERROR("Truncation failed");
     }
-    auto* file_start = static_cast<in::SuperBlock*>(
-        mmap64(nullptr, sizeof(in::SuperBlock), PROT_WRITE | PROT_READ, MAP_SHARED, fd_, 0));
+    auto* file_start = static_cast<SuperBlock*>(
+        mmap64(nullptr, sizeof(SuperBlock), PROT_WRITE | PROT_READ, MAP_SHARED, fd_, 0));
     if (file_start == MAP_FAILED) {
       FSPP_HANDLE_ERROR("Can't mmap truncated file");
     }
 
     *file_start = super_block;
-    if (munmap(file_start, sizeof(in::SuperBlock)) == -1) {
+    if (munmap(file_start, sizeof(SuperBlock)) == -1) {
       FSPP_HANDLE_ERROR("munmap truncated file failed");
     }
 
@@ -88,13 +88,13 @@ FileSystem::FileSystem(const std::string& ffile_path) {
   }
 
   auto* file_start =
-      static_cast<in::SuperBlock*>(mmap64(nullptr, sizeof(in::SuperBlock), PROT_READ, MAP_SHARED, fd_, 0));
+      static_cast<SuperBlock*>(mmap64(nullptr, sizeof(SuperBlock), PROT_READ, MAP_SHARED, fd_, 0));
   if (file_start == MAP_FAILED) {
     FSPP_HANDLE_ERROR("Can't mmap metadata for read");
   }
 
-  in::SuperBlock super_block = *file_start;
-  if (munmap(file_start, sizeof(in::SuperBlock)) == -1) {
+  SuperBlock super_block = *file_start;
+  if (munmap(file_start, sizeof(SuperBlock)) == -1) {
     FSPP_HANDLE_ERROR("munmap metadata failed");
   }
 
@@ -107,10 +107,10 @@ FileSystem::FileSystem(const std::string& ffile_path) {
   }
 
   super_block_ptr_ = reinterpret_cast<internal::SuperBlock*>(file_bytes_);
-  blocks_ = in::BlockSpace(&super_block_ptr_->block_num, &super_block_ptr_->free_block_num,
+  blocks_ = Blocks(&super_block_ptr_->block_num, &super_block_ptr_->free_block_num,
                            file_bytes_ + super_block_ptr_->BlockBitSetOffset(),
                            reinterpret_cast<internal::Block*>(file_bytes_ + super_block_ptr_->BlocksOffset()));
-  inodes_ = in::InodeSpace(&super_block_ptr_->inode_num, &super_block_ptr_->free_inode_num,
+  inodes_ = Inodes(&super_block_ptr_->inode_num, &super_block_ptr_->free_inode_num,
                            file_bytes_ + super_block_ptr_->InodeBitSetOffset(), &blocks_,
                            reinterpret_cast<internal::Inode*>(file_bytes_ + super_block_ptr_->InodesOffset()));
 
@@ -261,7 +261,7 @@ int FileSystem::createFDE(const std::string& fde_path, bool is_dir) {
     name[next_name_len] = 0;
 
     uint64_t child_id = 0;
-    in::Inode& current_inode = inodes_.getInodeById(current_inode_id);
+    Inode& current_inode = inodes_.getInodeById(current_inode_id);
     if (!existsChild(current_inode, name)) {
       if (createChild(current_inode, name, true) < 0) {
         delete[] name;

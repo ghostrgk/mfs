@@ -7,12 +7,8 @@
 #ifdef NORMAL_ILIST
 
 #include "ilist.h"
-
-#endif
-
+#else
 namespace fspp::internal {
-
-#ifndef NORMAL_ILIST
 class InodesList {
  public:
   [[nodiscard]] uint64_t getBlockIdByIndex(uint64_t index) const {
@@ -50,7 +46,10 @@ class InodesList {
   uint64_t size_{0};
   uint64_t block_ids_[INODE_MAX_BLOCK_COUNT];
 };
+}  // namespace fspp::internal
 #endif
+
+namespace fspp::internal {
 
 struct Link {
   bool is_alive{true};
@@ -65,11 +64,14 @@ struct Inode {
   InodesList inodes_list;
 };
 
-class InodeSpace {
+/*!
+ * Does all work that connected to inodes
+ */
+class Inodes {
  public:
-  InodeSpace() = default;
-  InodeSpace(const uint64_t* inode_num_ptr, uint64_t* free_inode_num_ptr, uint8_t* bit_set_bytes, BlockSpace* blocks,
-             Inode* inode_bytes);
+  Inodes() = default;
+  Inodes(const uint64_t* inode_num_ptr, uint64_t* free_inode_num_ptr, uint8_t* bit_set_bytes, Blocks* blocks,
+         Inode* inode_bytes);
 
   Inode& getInodeById(uint64_t inode_id);
 
@@ -115,8 +117,8 @@ class InodeSpace {
   uint64_t* free_inode_num_ptr_{nullptr};
   BitSet bit_set_{};
 
-  BlockSpace* blocks_{nullptr};
-  Inode* inodes_{nullptr};
+  Blocks* blocks_{nullptr};
+  Inode* inodes_ptr_{nullptr};
 };
 
 }  // namespace fspp::internal
