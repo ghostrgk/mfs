@@ -4,6 +4,7 @@
 #include <cstdint>
 
 #include "block.h"
+#include "compiler.h"
 
 namespace fspp::internal {
 
@@ -15,11 +16,11 @@ class InodesList {
    * @param index index of id in the block
    * @return block id from block
    */
-  static uint64_t& resolveIndirection(Blocks* blocks, uint64_t block_id, uint64_t index) {
+  static id_t& resolveIndirection(Blocks* blocks, uint64_t block_id, uint64_t index) {
     return ((uint64_t*)blocks->getBlockById(block_id).bytes)[index];
   }
 
-  uint64_t getBlockIdByIndex(Blocks* blocks, uint64_t index);
+  id_t getBlockIdByIndex(Blocks* blocks, uint64_t index);
 
   [[nodiscard]] uint64_t size() const {
     return size_;
@@ -28,22 +29,24 @@ class InodesList {
   [[nodiscard]] static uint64_t max_size() {
     return INODE_MAX_BLOCK_COUNT;
   }
+
   void clear() {
     size_ = 0;
   }
 
-  void setSize(uint64_t new_size) {
-    size_ = new_size;
-  }
+  int addBlock(Blocks* blocks, id_t block_id);
 
-  int addBlock(Blocks* blocks, uint64_t block_id);
+  [[maybe_unused]] uint64_t BlocksNeededToAddBlocks(uint64_t additional_blocks_count) {
+    FSPP_UNUSED(additional_blocks_count);
+    return 0;
+  }
 
  private:
   uint64_t size_{0};
 
-  uint64_t block_ids_[ILIST_ZERO_INDIRECTION]{};
-  uint64_t level1_id_{0};
-  uint64_t level2_id_{0};
+  id_t block_ids_[ILIST_ZERO_INDIRECTION]{};
+  id_t level1_id_{0};
+  id_t level2_id_{0};
 };
 
 }  // namespace fspp::internal

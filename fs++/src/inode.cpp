@@ -6,8 +6,8 @@
 
 namespace fspp::internal {
 
-[[maybe_unused]] Inodes::Inodes(const uint64_t* inode_num_ptr, uint64_t* free_inode_num_ptr, uint8_t* bit_set_bytes, Blocks* blocks,
-               Inode* inode_bytes)
+[[maybe_unused]] Inodes::Inodes(const uint64_t* inode_num_ptr, uint64_t* free_inode_num_ptr, uint8_t* bit_set_bytes,
+                                Blocks* blocks, Inode* inode_bytes)
     : /*inode_num_ptr_(inode_num_ptr),*/
       inodes_ptr_start_(inode_bytes),
       blocks_(blocks),
@@ -144,9 +144,12 @@ void Inodes::deleteInode(uint64_t inode_id) {
     }
   }
 
+  // todo: delete InodeList blocks
   auto& inode = getInodeById(inode_id);
   for (uint64_t i = 0; i < inode.blocks_count; ++i) {
-    blocks_->deleteBlock(inode.inodes_list.getBlockIdByIndex(blocks_, i));
+    if (blocks_->deleteBlock(inode.inodes_list.getBlockIdByIndex(blocks_, i)) < 0) {
+      std::abort();
+    }
   }
   bit_set_.clearBit(inode_id);
 
@@ -214,7 +217,9 @@ int Inodes::extend(Inode& inode, uint64_t new_size) {
   }
 
   while (inode.blocks_count != exact_block_count) {
-    if (addBlockToInode(inode, blocks_->createBlock()) < 0) {
+    id_t new_block_id;
+
+    if (blocks_->createBlock(&new_block_id) < 0 || addBlockToInode(inode, new_block_id) < 0) {
       return -1;
     }
   }

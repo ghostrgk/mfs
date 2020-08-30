@@ -3,6 +3,8 @@
 simple filesystem for learning
 
 ## notes
+x86_64  
+POSIX  
 One should build Debug version of project (will be fixed soon)
 
 ## part 1: local app

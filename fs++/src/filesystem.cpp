@@ -33,9 +33,6 @@ static int initRootInode(int ffile_fd, SuperBlock& superblock) {
 
   auto* root_inode_ptr = reinterpret_cast<Inode*>(ffile_content + superblock.InodesOffset());
   root_inode_ptr->is_dir = true;
-  root_inode_ptr->inodes_list.setSize(0);
-  root_inode_ptr->blocks_count = 0;
-  root_inode_ptr->file_size = 0;
 
   BitSet inode_bitset(superblock.inode_num, ffile_content + superblock.InodeBitSetOffset());
   inode_bitset.setBit(0);

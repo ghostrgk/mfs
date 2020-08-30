@@ -3,7 +3,7 @@
 namespace fspp::internal {
 
 #ifdef NORMAL_ILIST
-uint64_t InodesList::getBlockIdByIndex(Blocks* blocks, uint64_t index) {
+id_t InodesList::getBlockIdByIndex(Blocks* blocks, uint64_t index) {
   assert(index < size_);
   if (index < ILIST_ZERO_INDIRECTION) {
     return block_ids_[index];
@@ -25,7 +25,7 @@ uint64_t InodesList::getBlockIdByIndex(Blocks* blocks, uint64_t index) {
   return resolveIndirection(blocks, resolved_level1_id, index);
 }
 
-int InodesList::addBlock(Blocks* blocks, uint64_t block_id) {
+int InodesList::addBlock(Blocks* blocks, id_t block_id) {
   if (size_ + 1 == INODE_MAX_BLOCK_COUNT) {
     return -1;
   }
@@ -41,7 +41,9 @@ int InodesList::addBlock(Blocks* blocks, uint64_t block_id) {
   index -= ILIST_ZERO_INDIRECTION;
 
   if (index == 0) {
-    level1_id_ = blocks->createBlock();
+    if (blocks->createBlock(&level1_id_) < 0) {
+     return -1;
+    }
   }
 
   if (index < IDS_IN_BLOCK_COUNT) {
@@ -54,12 +56,16 @@ int InodesList::addBlock(Blocks* blocks, uint64_t block_id) {
   assert(index < IDS_IN_BLOCK_COUNT * IDS_IN_BLOCK_COUNT);
 
   if (index == 0) {
-    level2_id_ = blocks->createBlock();
+    if (blocks->createBlock(&level2_id_) < 0) {
+      return -1;
+    }
   }
 
   id_t& resolved_level1_id = resolveIndirection(blocks, level2_id_, index / IDS_IN_BLOCK_COUNT);
   if (index % IDS_IN_BLOCK_COUNT == 0) {
-    resolved_level1_id = blocks->createBlock();
+    if (blocks->createBlock(&resolved_level1_id) < 0) {
+      return -1;
+    }
   }
 
   index %= IDS_IN_BLOCK_COUNT;

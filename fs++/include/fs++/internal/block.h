@@ -21,8 +21,8 @@ class Blocks {
   Block& getBlockById(uint64_t block_id);
 
   // todo: maybe it should indicate fail
-  uint64_t createBlock();
-  void deleteBlock(uint64_t block_id);
+  int createBlock(id_t* created_id);
+  int deleteBlock(id_t block_id);
 
   uint64_t getFreeBlockNum();
 
