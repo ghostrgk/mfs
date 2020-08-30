@@ -1,7 +1,7 @@
 #include "fs++/filesystem_client.h"
 
-#include <cstring>
-#include <cassert>
+// todo: fix asserts
+
 
 // ffile layout
 // | superblock | inode_bitset | block_bitset | inodes | blocks |

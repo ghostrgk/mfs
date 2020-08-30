@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(local_app
+project(simple_server
         VERSION 0.1
         LANGUAGES CXX)
 

@@ -6,7 +6,6 @@
 
 #include "fs++/internal/filesystem.h"
 #include "fs++/internal/logging.h"
-#include "fs++/internal/config.h"
 #include "fs++/internal/compiler.h"
 
 #define FSPP_HANDLE_ERROR(msg) \

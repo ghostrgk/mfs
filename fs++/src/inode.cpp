@@ -1,7 +1,6 @@
 #include <fs++/internal/inode.h>
 
 #include <cstring>
-#include <cassert>
 
 #include <fs++/internal/logging.h>
 
