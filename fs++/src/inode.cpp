@@ -6,17 +6,17 @@
 
 namespace fspp::internal {
 
-Inodes::Inodes(const uint64_t* inode_num_ptr, uint64_t* free_inode_num_ptr, uint8_t* bit_set_bytes,
-                       Blocks* blocks, Inode* inode_bytes)
+[[maybe_unused]] Inodes::Inodes(const uint64_t* inode_num_ptr, uint64_t* free_inode_num_ptr, uint8_t* bit_set_bytes, Blocks* blocks,
+               Inode* inode_bytes)
     : /*inode_num_ptr_(inode_num_ptr),*/
-      free_inode_num_ptr_(free_inode_num_ptr),
-      bit_set_(*inode_num_ptr, bit_set_bytes),
+      inodes_ptr_start_(inode_bytes),
       blocks_(blocks),
-      inodes_ptr_(inode_bytes) {
+      free_inode_num_ptr_(free_inode_num_ptr),
+      bit_set_(*inode_num_ptr, bit_set_bytes) {
 }
 
 Inode& Inodes::getInodeById(uint64_t inode_id) {
-  return inodes_ptr_[inode_id];
+  return inodes_ptr_start_[inode_id];
 }
 
 int Inodes::read(Inode* inode_ptr, void* buffer, uint64_t offset, uint64_t count) const {
@@ -222,6 +222,12 @@ int Inodes::extend(Inode& inode, uint64_t new_size) {
   inode.file_size = new_size;
 
   return 0;
+}
+Inodes::Inodes(void* inodes_ptr_start, Blocks* blocks, uint64_t* free_inode_num_ptr, BitSet inodes_bitset)
+    : inodes_ptr_start_(static_cast<Inode*>(inodes_ptr_start)),
+      blocks_(blocks),
+      free_inode_num_ptr_(free_inode_num_ptr),
+      bit_set_(std::move(inodes_bitset)) {
 }
 
 }  // namespace fspp::internal

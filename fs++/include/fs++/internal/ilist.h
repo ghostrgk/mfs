@@ -42,8 +42,8 @@ class InodesList {
   uint64_t size_{0};
 
   uint64_t block_ids_[ILIST_ZERO_INDIRECTION]{};
-  uint64_t level1_id{0};
-  uint64_t level2_id{0};
+  uint64_t level1_id_{0};
+  uint64_t level2_id_{0};
 };
 
 }  // namespace fspp::internal

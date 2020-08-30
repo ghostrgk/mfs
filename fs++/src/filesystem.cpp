@@ -64,15 +64,15 @@ FileSystem::FileSystem(const std::string& ffile_path) {
     }
 
     SuperBlock super_block = {.block_num = DEFAULT_BLOCK_COUNT,
-                                  .free_block_num = super_block.block_num,
-                                  .inode_num = DEFAULT_INODE_COUNT,
-                                  .free_inode_num = super_block.inode_num};
+                              .free_block_num = super_block.block_num,
+                              .inode_num = DEFAULT_INODE_COUNT,
+                              .free_inode_num = super_block.inode_num};
 
     if (ftruncate(fd_, super_block.FileSystemSize()) == -1) {
       FSPP_HANDLE_ERROR("Truncation failed");
     }
-    auto* file_start = static_cast<SuperBlock*>(
-        mmap64(nullptr, sizeof(SuperBlock), PROT_WRITE | PROT_READ, MAP_SHARED, fd_, 0));
+    auto* file_start =
+        static_cast<SuperBlock*>(mmap64(nullptr, sizeof(SuperBlock), PROT_WRITE | PROT_READ, MAP_SHARED, fd_, 0));
     if (file_start == MAP_FAILED) {
       FSPP_HANDLE_ERROR("Can't mmap truncated file");
     }
@@ -87,8 +87,7 @@ FileSystem::FileSystem(const std::string& ffile_path) {
     }
   }
 
-  auto* file_start =
-      static_cast<SuperBlock*>(mmap64(nullptr, sizeof(SuperBlock), PROT_READ, MAP_SHARED, fd_, 0));
+  auto* file_start = static_cast<SuperBlock*>(mmap64(nullptr, sizeof(SuperBlock), PROT_READ, MAP_SHARED, fd_, 0));
   if (file_start == MAP_FAILED) {
     FSPP_HANDLE_ERROR("Can't mmap metadata for read");
   }
@@ -107,12 +106,22 @@ FileSystem::FileSystem(const std::string& ffile_path) {
   }
 
   super_block_ptr_ = reinterpret_cast<internal::SuperBlock*>(file_bytes_);
-  blocks_ = Blocks(&super_block_ptr_->block_num, &super_block_ptr_->free_block_num,
-                           file_bytes_ + super_block_ptr_->BlockBitSetOffset(),
-                           reinterpret_cast<internal::Block*>(file_bytes_ + super_block_ptr_->BlocksOffset()));
-  inodes_ = Inodes(&super_block_ptr_->inode_num, &super_block_ptr_->free_inode_num,
-                           file_bytes_ + super_block_ptr_->InodeBitSetOffset(), &blocks_,
-                           reinterpret_cast<internal::Inode*>(file_bytes_ + super_block_ptr_->InodesOffset()));
+
+  BitSet blocks_bitset(super_block_ptr_->block_num, file_bytes_ + super_block_ptr_->BlockBitSetOffset());
+  blocks_ = Blocks(file_bytes_ + super_block_ptr_->BlocksOffset(), &super_block_ptr_->free_block_num,
+                   std::move(blocks_bitset));
+
+  BitSet inodes_bitset(super_block_ptr_->inode_num, file_bytes_ + super_block_ptr_->InodeBitSetOffset());
+  inodes_ = Inodes(file_bytes_ + super_block_ptr_->InodesOffset(), &blocks_, &super_block_ptr_->free_inode_num,
+                   std::move(inodes_bitset));
+
+  //  blocks_ = Blocks(&super_block_ptr_->block_num, &super_block_ptr_->free_block_num,
+  //                           file_bytes_ + super_block_ptr_->BlockBitSetOffset(),
+  //                           reinterpret_cast<internal::Block*>(file_bytes_ + super_block_ptr_->BlocksOffset()));
+
+  //  inodes_ = Inodes(&super_block_ptr_->inode_num, &super_block_ptr_->free_inode_num,
+  //                   file_bytes_ + super_block_ptr_->InodeBitSetOffset(), &blocks_,
+  //                   reinterpret_cast<Inode*>(file_bytes_ + super_block_ptr_->InodesOffset()));
 
   FSPP_LOG("FSM", "inode bitset: " + std::to_string(super_block_ptr_->InodeBitSetOffset()));
   FSPP_LOG("FSM", "block bitset: " + std::to_string(super_block_ptr_->BlockBitSetOffset()));

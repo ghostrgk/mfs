@@ -70,9 +70,9 @@ struct Inode {
 class Inodes {
  public:
   Inodes() = default;
-  Inodes(const uint64_t* inode_num_ptr, uint64_t* free_inode_num_ptr, uint8_t* bit_set_bytes, Blocks* blocks,
-         Inode* inode_bytes);
-
+  [[maybe_unused]] Inodes(const uint64_t* inode_num_ptr, uint64_t* free_inode_num_ptr, uint8_t* bit_set_bytes,
+                          Blocks* blocks, Inode* inode_bytes);
+  Inodes(void* inodes_ptr_start, Blocks* blocks, uint64_t* free_inode_num_ptr, BitSet inodes_bitset);
   Inode& getInodeById(uint64_t inode_id);
 
   /*!
@@ -114,11 +114,10 @@ class Inodes {
   int extend(Inode& inode, uint64_t new_size);
 
  private:
+  Inode* inodes_ptr_start_{nullptr};
+  Blocks* blocks_{nullptr};
   uint64_t* free_inode_num_ptr_{nullptr};
   BitSet bit_set_{};
-
-  Blocks* blocks_{nullptr};
-  Inode* inodes_ptr_{nullptr};
 };
 
 }  // namespace fspp::internal
