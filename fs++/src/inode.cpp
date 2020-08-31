@@ -24,8 +24,6 @@ int Inodes::read(Inode* inode_ptr, void* buffer, uint64_t offset, uint64_t count
   auto* byte_buffer = static_cast<uint8_t*>(buffer);
   uint64_t count_down = count;
 
-  assert(offset + count <= inode.file_size);
-
   uint64_t buffer_offset = 0;
   uint64_t block_index = offset / BLOCK_SIZE;
 
@@ -47,7 +45,9 @@ int Inodes::read(Inode* inode_ptr, void* buffer, uint64_t offset, uint64_t count
     return buffer_offset;
   }
 
+#ifdef REDUNDANT_CHECKS
   assert(offset % BLOCK_SIZE == 0);
+#endif
 
   for (; block_index < inode.blocks_count && offset < inode.file_size && buffer_offset < count; ++block_index) {
     auto& block = getBlockByIndex(inode, block_index);
@@ -75,7 +75,9 @@ int Inodes::write(Inode* inode_ptr, const void* buffer, uint64_t offset, uint64_
     }
   }
 
+#ifdef REDUNDANT_CHECKS
   assert(offset + count <= inode.file_size);
+#endif
 
   uint64_t buffer_offset = 0;
   uint64_t block_index = offset / BLOCK_SIZE;
@@ -98,7 +100,9 @@ int Inodes::write(Inode* inode_ptr, const void* buffer, uint64_t offset, uint64_
     return buffer_offset;
   }
 
+#ifdef REDUNDANT_CHECKS
   assert(offset % BLOCK_SIZE == 0);
+#endif
 
   for (; block_index < inode.blocks_count && offset < inode.file_size && buffer_offset < count; ++block_index) {
     auto& block = getBlockByIndex(inode, block_index);
@@ -157,7 +161,9 @@ void Inodes::deleteInode(uint64_t inode_id) {
 }
 
 int Inodes::addDirectoryEntry(Inode* inode_ptr, const char* name, bool is_dir) {
-  assert(strlen(name) <= MAX_LINK_NAME_LEN);
+  if (strlen(name) > MAX_LINK_NAME_LEN) {
+    return -1;
+  }
 
   uint64_t new_inode_id = createInode();
   getInodeById(new_inode_id).is_dir = is_dir;

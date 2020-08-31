@@ -20,7 +20,6 @@ class Blocks {
 
   Block& getBlockById(uint64_t block_id);
 
-  // todo: maybe it should indicate fail
   int createBlock(id_t* created_id);
   int deleteBlock(id_t block_id);
 

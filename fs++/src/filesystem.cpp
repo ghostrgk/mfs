@@ -45,7 +45,6 @@ static int initRootInode(int ffile_fd, SuperBlock& superblock) {
   return 0;
 }
 
-// todo: remove abort
 FileSystem::FileSystem(const std::string& ffile_path) {
   fd_ = open(ffile_path.c_str(), O_RDWR);
   if (fd_ == -1) {
@@ -146,8 +145,13 @@ int FileSystem::getFDEInodeId(std::string fde_path, uint64_t* result_ptr) {
     return 0;
   }
 
-  assert(fde_path[0] == '/');
-  assert(fde_path[fde_path.size() - 1] != '/');
+  if (fde_path[0] != '/') {
+    return -1;
+  }
+
+  if (fde_path[fde_path.size() - 1] == '/') {
+    return -1;
+  }
 
   const char* next_name_ptr = fde_path.c_str() + 1;
   const char* next_name_end = strchr(next_name_ptr, '/');
@@ -212,7 +216,9 @@ int FileSystem::getChildId(internal::Inode& parent_inode, const std::string& nam
 }
 
 int FileSystem::createChild(internal::Inode& parent_inode, const std::string& name, bool is_dir) {
-  assert(name.size() <= MAX_LINK_NAME_LEN);
+  if (name.size() > MAX_LINK_NAME_LEN) {
+    return -1;
+  }
 
   if (existsChild(parent_inode, name)) {
     return -1;
@@ -224,7 +230,9 @@ int FileSystem::createChild(internal::Inode& parent_inode, const std::string& na
 
 #ifdef REDUNDANT_CHECKS
   uint64_t child_id;
-  assert(getChildId(parent_inode, name, &child_id) >= 0);
+  int rc = getChildId(parent_inode, name, &child_id);
+  assert(rc >= 0);
+  FSPP_USED_BY_ASSERT(rc);
 #endif
 
   return 0;
@@ -251,8 +259,13 @@ int FileSystem::createFDE(const std::string& fde_path, bool is_dir) {
     return -1;
   }
 
-  assert(fde_path[0] == '/');
-  assert(fde_path[fde_path.size() - 1] != '/');
+  if (fde_path[0] != '/') {
+    return -1;
+  }
+
+  if (fde_path[fde_path.size() - 1] == '/') {
+    return -1;
+  }
 
   const char* next_name_ptr = fde_path.c_str() + 1;
   const char* next_name_end = strchr(next_name_ptr, '/');
@@ -321,7 +334,9 @@ int FileSystem::deleteFDE(const std::string& fde_path, bool is_dir) {
   }
 
   uint64_t parent_inode_id;
-  assert(getFDEInodeParentId(fde_path, &parent_inode_id) >= 0);
+  int rc = getFDEInodeParentId(fde_path, &parent_inode_id);
+  assert(rc >= 0);
+  FSPP_USED_BY_ASSERT(rc);
 
   Inode& parent_inode = getInodeById(parent_inode_id);
   for (uint64_t i = 0; i * sizeof(Link) < parent_inode.file_size; ++i) {
@@ -346,8 +361,13 @@ int FileSystem::getFDEInodeParentId(std::string fde_path, uint64_t* result_ptr) 
     return -1;
   }
 
-  assert(fde_path[0] == '/');
-  assert(fde_path[fde_path.size() - 1] != '/');
+  if (fde_path[0] != '/') {
+    return -1;
+  }
+
+  if (fde_path[fde_path.size() - 1] == '/') {
+    return -1;
+  }
 
   const char* next_name_ptr = fde_path.c_str() + 1;
   const char* next_name_end = strchr(next_name_ptr, '/');

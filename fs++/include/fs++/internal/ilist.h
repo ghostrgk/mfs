@@ -20,6 +20,7 @@ class InodesList {
     return ((uint64_t*)blocks->getBlockById(block_id).bytes)[index];
   }
 
+  //todo: indicate error
   id_t getBlockIdByIndex(Blocks* blocks, uint64_t index);
 
   [[nodiscard]] uint64_t size() const {
@@ -37,7 +38,7 @@ class InodesList {
   int addBlock(Blocks* blocks, id_t block_id);
 
   [[maybe_unused]] uint64_t BlocksNeededToAddBlocks(uint64_t additional_blocks_count) {
-    FSPP_UNUSED(additional_blocks_count);
+    FSPP_USED_BY_ASSERT(additional_blocks_count);
     return 0;
   }
 

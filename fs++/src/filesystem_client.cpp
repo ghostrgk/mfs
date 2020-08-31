@@ -1,8 +1,5 @@
 #include "fs++/filesystem_client.h"
 
-// todo: fix asserts
-
-
 // ffile layout
 // | superblock | inode_bitset | block_bitset | inodes | blocks |
 
@@ -72,7 +69,10 @@ int FileSystemClient::listDir(const std::string& dir_path, std::string& output) 
 
 uint64_t FileSystemClient::fileSize(const std::string& file_path) {
   uint64_t inode_id;
-  assert(fs_.getFDEInodeId(file_path, &inode_id) >= 0);
+  int rc = fs_.getFDEInodeId(file_path, &inode_id);
+
+  assert(rc >= 0);
+  FSPP_USED_BY_ASSERT(rc);
 
   return fs_.getInodeById(inode_id).file_size;
 }

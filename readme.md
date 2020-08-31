@@ -5,7 +5,8 @@ simple filesystem for learning
 ## notes
 x86_64  
 POSIX  
-One should build Debug version of project (will be fixed soon)
+One should build Debug version of project (will be fixed soon)  
+fs++ can crash if it fails to initialize or detects file corruption
 
 ## part 1: local app
 
