@@ -1,2 +1,5 @@
 - fde - file/directory entity
 - ffile - file in outer filesystem that contains app filesystem
+- block id - unique block identifier in filesystem
+- inode id - unique inode identifier in filesystem
+- ilist - list of block_ids associated with particular inode

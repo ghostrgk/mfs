@@ -9,5 +9,5 @@ int rmfile(fspp::FileSystemClient& fs, const std::string& query, std::ostream& u
 int mkdir(fspp::FileSystemClient& fs, const std::string& query, std::ostream& user_output);
 int rmdir(fspp::FileSystemClient& fs, const std::string& query, std::ostream& user_output);
 int lsdir(fspp::FileSystemClient& fs, const std::string& query, std::ostream& user_output);
-int store(fspp::FileSystemClient& fs, const std::string& query, std::ostream& user_output);
-int load(fspp::FileSystemClient& fs, const std::string& query, std::ostream& user_output);
+int store(int socket_fd, fspp::FileSystemClient& fs, const std::string& query, std::ostream& user_output);
+int load(int socket_fd, fspp::FileSystemClient& fs, const std::string& query, std::ostream& user_output);

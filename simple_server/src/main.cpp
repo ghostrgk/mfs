@@ -13,6 +13,7 @@
 #include <netinet/in.h>
 
 #include "cmds.h"
+#include "inits.h"
 #include "support.h"
 
 volatile bool ending = false;
@@ -20,10 +21,6 @@ volatile bool ending = false;
 void signal_handler(int signum) {
   (void)signum;
   ending = true;
-}
-
-void ignoring_handler(int signum) {
-  (void)signum;
 }
 
 int init_signal_handling() {
@@ -41,30 +38,6 @@ int init_signal_handling() {
   signal(SIGPIPE, SIG_IGN);
 
   return 0;
-}
-
-int init_socket() {
-  int server_fd = socket(AF_INET, SOCK_STREAM, 0);
-
-  if (server_fd < 0) {
-    perror("Can't create socket");
-    return -1;
-  }
-
-  struct sockaddr_in address = {.sin_family = AF_INET, .sin_port = htons(PORT)};
-  address.sin_addr.s_addr = INADDR_ANY;
-
-  if (bind(server_fd, (struct sockaddr*)&address, sizeof(address)) < 0) {
-    perror("Can't bind socket");
-    return -1;
-  }
-
-  if (listen(server_fd, SOMAXCONN) < 0) {
-    perror("Can't set socket to listen mode");
-    return -1;
-  }
-
-  return server_fd;
 }
 
 int process_input(fspp::FileSystemClient& fs, const std::string& input, std::ostream& user_output) {
@@ -117,14 +90,6 @@ int process_input(fspp::FileSystemClient& fs, const std::string& input, std::ost
     int result = lsdir(fs, input, user_output);
     std::cerr << (result < 0 ? "fail" : "success") << std::endl;
 
-  } else if (std::regex_search(input, match, store_cmd_regex)) {
-    int result = store(fs, input, user_output);
-    std::cerr << (result < 0 ? "fail" : "success") << std::endl;
-
-  } else if (std::regex_search(input, match, load_cmd_regex)) {
-    int result = load(fs, input, user_output);
-    std::cerr << (result < 0 ? "fail" : "success") << std::endl;
-
   } else if (std::regex_match(input, match, help_regex)) {
     std::cerr << "help command" << std::endl;
     user_output << help << std::endl;
@@ -138,21 +103,46 @@ int process_input(fspp::FileSystemClient& fs, const std::string& input, std::ost
 }
 
 int process_connection(fspp::FileSystemClient& fs, int socket_fd) {
+  static const std::regex exit_regex(R"(^\s*exit\s*$)");
+  static const std::regex store_cmd_regex(R"(^\s*store\s+)");
+  static const std::regex load_cmd_regex(R"(^\s*load\s+)");
+
   int bytes_read;
   char buffer[MAX_QUERY_LEN];
+
+  // main connection loop
   while (true) {
     if ((bytes_read = read(socket_fd, &buffer, sizeof(buffer))) < 0) {
-      close(socket_fd);
       return -1;
     }
 
     std::string input(buffer, bytes_read);
 
     std::ostringstream user_output;
-    if (process_input(fs, input, user_output) < 0) {
-      close(socket_fd);
+
+    // connection dependent commands
+    // looks bad
+    // todo: fix
+    std::smatch match;
+    if (std::regex_match(input, match, exit_regex)) {
+      std::cerr << "exit command: exiting" << std::endl;
+      return 0;
+
+    } else if (std::regex_search(input, match, store_cmd_regex)) {
+      int result = store(socket_fd, fs, input, user_output);
+      std::cerr << (result < 0 ? "fail" : "success") << std::endl;
+
+    } else if (std::regex_search(input, match, load_cmd_regex)) {
+      int result = load(socket_fd, fs, input, user_output);
+      std::cerr << (result < 0 ? "fail" : "success") << std::endl;
+    } else {
+      // process other commands
+      if (process_input(fs, input, user_output) < 0) {
+        return -1;
+      }
     }
 
+    // writing output
     std::string response = user_output.str();
     if (write(socket_fd, response.c_str(), response.size()) < 0) {
       return -1;
@@ -177,7 +167,7 @@ int main(int argc, char** argv) {
   }
 
   // socket init
-  int server_fd = init_socket();
+  int server_fd = init_socket(PORT);
 
   if (server_fd < 0) {
     LOG("Can't create socket");
@@ -234,9 +224,10 @@ int main(int argc, char** argv) {
         continue;
       }
 
-      int rc = process_connection(fs, socket_fd);
-      if (rc == -1) {
-      }
+      process_connection(fs, socket_fd);
+
+      shutdown(socket_fd, SHUT_RDWR);
+      close(socket_fd);
     }
   }
 

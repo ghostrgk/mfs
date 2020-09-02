@@ -18,6 +18,8 @@ class FileSystemClient {
   bool existsFile(const std::string& file_path);
   int createFile(const std::string& file_path);
   int deleteFile(const std::string& file_path);
+
+  // one must use only after successful existsFile
   uint64_t fileSize(const std::string& file_path);
 
   int readFileContent(const std::string& file_path, uint64_t offset, void* buffer, uint64_t size);

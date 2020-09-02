@@ -1,5 +1,6 @@
 #include "cmds.h"
 
+#include <algorithm>
 #include <iostream>
 #include <regex>
 
@@ -161,7 +162,7 @@ int lsdir(fspp::FileSystemClient& fs, const std::string& query, std::ostream& us
   return 0;
 }
 
-int store(fspp::FileSystemClient& fs, const std::string& query, std::ostream& user_output) {
+int store(int socket_fd, fspp::FileSystemClient& fs, const std::string& query, std::ostream& user_output) {
   static const std::regex full_regex(R"(^\s*store\s+(/|(/[-\d\w.]+)+)\s+(/|(/[-\d\w.]+)+)\s*$)");
   std::cerr << "store command: ";
 
@@ -184,61 +185,46 @@ int store(fspp::FileSystemClient& fs, const std::string& query, std::ostream& us
     to_path += from_basename;
   }
 
-  int from_fd = open(from_path.c_str(), O_RDONLY);
-  if (from_fd < 0) {
-    user_output << "Can't open from_file" << std::endl;
-    return -1;
-  }
-
-  struct stat stat_buf {};
-  if (fstat(from_fd, &stat_buf) < 0) {
-    user_output << "Can't read from_file length" << std::endl;
-
-    close(from_fd);
-    return -1;
-  }
-
-  if (S_ISDIR(stat_buf.st_mode)) {
-    user_output << "You can't store directory. Only storing files is supporting" << std::endl;
-
-    close(from_fd);
-    return -1;
-  }
-
-  uint64_t from_file_len = stat_buf.st_size;
-  void* from_file_content = mmap64(nullptr, from_file_len, PROT_READ, MAP_PRIVATE, from_fd, 0);
-
   if (!fs.existsFile(to_path)) {
     if (fs.createFile(to_path) < 0) {
       user_output << "Can't create file in app filesystem" << std::endl;
-
-      munmap(from_file_content, from_file_len);
-      close(from_fd);
       return -1;
     }
   }
 
-  int bytes_written = fs.writeFileContent(to_path, 0, from_file_content, from_file_len);
-  if (bytes_written == -1) {
-    user_output << "Can't write to app filesystem" << std::endl;
+  // host/network problems may happened
+  // there is no default hton64
+  // todo: fix
+  uint64_t file_len = 0;
+  int bytes_read;
 
-    munmap(from_file_content, from_file_len);
-    close(from_fd);
+  if ((bytes_read = read(socket_fd, &file_len, sizeof(file_len))) < 0 || bytes_read != sizeof(file_len)) {
+    user_output << "Can't receive file len" << std::endl;
     return -1;
   }
 
-  if ((uint64_t)bytes_written != from_file_len) {
-    std::cerr << "possible file corruption" << std::endl;
-  }
+  for (uint64_t bytes_written = 0; bytes_written < file_len;) {
+    char buffer[4096];
+    if ((bytes_read = read(socket_fd, buffer, sizeof(buffer))) < 0) {
+      // maybe add more smart way to have unfilled files
+      fs.deleteFile(to_path);
+      user_output << "Can't receive file content" << std::endl;
+      return -1;
+    }
 
-  munmap(from_file_content, from_file_len);
-  close(from_fd);
+    uint64_t current_write_len = std::min((uint64_t)bytes_read, file_len - bytes_written);
+    if (fs.writeFileContent(to_path, bytes_written, buffer, current_write_len) < 0) {
+      user_output << "Writing to file failed" << std::endl;
+      return -1;
+    }
+    bytes_written += current_write_len;
+  }
 
   user_output << "Ok" << std::endl;
   return 0;
 }
 
-int load(fspp::FileSystemClient& fs, const std::string& query, std::ostream& user_output) {
+int load(int socket_fd, fspp::FileSystemClient& fs, const std::string& query, std::ostream& user_output) {
   static const std::regex full_regex(R"(^\s*load\s+(/|(/[\w.]+)+)\s+(/|(/[\w.]+)+)\s*$)");
   std::cerr << "load command: ";
 
@@ -258,69 +244,26 @@ int load(fspp::FileSystemClient& fs, const std::string& query, std::ostream& use
     return -1;
   }
 
-  const char* from_basename_start = strrchr(from_path.c_str(), '/') + 1;
-  assert(from_basename_start != nullptr);
-  std::string from_basename(from_basename_start);
+  // todo: make hton64?
+  uint64_t file_len = fs.fileSize(from_path);
+  std::cerr << "(file_len=" << file_len << ") ";
 
-  int to_fd = open(to_path.c_str(), O_RDWR);
-  if (to_fd < 0) {
-    if (errno != ENOENT) {
-      user_output << "Can't open to_file/to_directory" << std::endl;
+  for (uint64_t bytes_sent = 0; bytes_sent < file_len;) {
+    char buffer[4096];
+    uint64_t current_read_len = std::min((uint64_t)sizeof(buffer), file_len - bytes_sent);
+    std::cerr << "(current_read_len=" << current_read_len << ") ";
+    if (fs.readFileContent(to_path, bytes_sent, buffer, current_read_len) < 0) {
+      // doesn't work at all
+      // todo fix
+      user_output << "Reading of file failed" << std::endl;
       return -1;
     }
 
-    to_fd = open(to_path.c_str(), O_CREAT | O_RDWR | O_TRUNC, 0640);
-    if (to_fd < 0) {
-      user_output << "Can't create to_file" << std::endl;
-      return -1;
+    if (write(socket_fd, buffer, current_read_len) < 0) {
+      user_output << "Can't send file content" << std::endl;
     }
+    bytes_sent += current_read_len;
   }
-
-  struct stat stat_buf {};
-  if (fstat(to_fd, &stat_buf) < 0) {
-    user_output << "Can't read to_file stat" << std::endl;
-
-    close(to_fd);
-    return -1;
-  }
-
-  if (S_ISDIR(stat_buf.st_mode)) {
-    to_path += from_basename;
-    close(to_fd);
-    to_fd = open(to_path.c_str(), O_RDWR);
-    if (to_fd < 0) {
-      if (errno != ENOENT) {
-        user_output << "Can't open to_file" << std::endl;
-        return -1;
-      }
-
-      to_fd = open(to_path.c_str(), O_CREAT | O_RDWR | O_TRUNC, 0640);
-      if (to_fd < 0) {
-        user_output << "Can't create to_file" << std::endl;
-        return -1;
-      }
-    }
-  }
-
-  uint64_t from_file_len = fs.fileSize(from_path);
-  ftruncate(to_fd, from_file_len);
-  void* to_file_content = mmap64(nullptr, from_file_len, PROT_WRITE, MAP_SHARED, to_fd, 0);
-
-  int bytes_read = fs.readFileContent(from_path, 0, to_file_content, from_file_len);
-  if (bytes_read == -1) {
-    user_output << "Can't write to app filesystem" << std::endl;
-
-    munmap(to_file_content, from_file_len);
-    close(to_fd);
-    return -1;
-  }
-
-  if ((uint64_t)bytes_read != from_file_len) {
-    std::cerr << "possible file corruption" << std::endl;
-  }
-
-  munmap(to_file_content, from_file_len);
-  close(to_fd);
 
   user_output << "Ok" << std::endl;
   return 0;
