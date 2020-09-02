@@ -1,12 +1,8 @@
 #include "cmds.h"
 
-#include <algorithm>
 #include <iostream>
 #include <regex>
 
-#include <sys/fcntl.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
 #include <unistd.h>
 
 int mkfile(fspp::FileSystemClient& fs, const std::string& query, std::ostream& user_output) {

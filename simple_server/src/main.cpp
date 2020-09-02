@@ -218,7 +218,7 @@ int main(int argc, char** argv) {
       struct sockaddr_in address {};
       socklen_t addrlen;
 
-      int socket_fd = accept(server_fd, (struct sockaddr*)&address, &addrlen);
+      int socket_fd = accept(server_fd, reinterpret_cast<sockaddr*>(&address), &addrlen);
       if (socket_fd < 0) {
         perror("Can't accept connection");
         continue;
