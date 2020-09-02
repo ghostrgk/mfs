@@ -248,13 +248,17 @@ int load(int socket_fd, fspp::FileSystemClient& fs, const std::string& query, st
   uint64_t file_len = fs.fileSize(from_path);
   std::cerr << "(file_len=" << file_len << ") ";
 
+  int bytes_written;
+  if ((bytes_written = write(socket_fd, &file_len, sizeof(file_len))) < 0 || bytes_written != sizeof(file_len)) {
+    user_output << "Can't send file len" << std::endl;
+    return -1;
+  }
+
   for (uint64_t bytes_sent = 0; bytes_sent < file_len;) {
     char buffer[4096];
     uint64_t current_read_len = std::min((uint64_t)sizeof(buffer), file_len - bytes_sent);
     std::cerr << "(current_read_len=" << current_read_len << ") ";
-    if (fs.readFileContent(to_path, bytes_sent, buffer, current_read_len) < 0) {
-      // doesn't work at all
-      // todo fix
+    if (fs.readFileContent(from_path, bytes_sent, buffer, current_read_len) < 0) {
       user_output << "Reading of file failed" << std::endl;
       return -1;
     }
