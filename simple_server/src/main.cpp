@@ -8,6 +8,7 @@
 #include <netinet/in.h>
 
 #include <fs++/filesystem_client.h>
+#include <arpa/inet.h>
 
 #include "inits.h"
 #include "processing.h"
@@ -103,17 +104,17 @@ int main(int argc, char** argv) {
 
       int socket_fd = accept(server_fd, reinterpret_cast<sockaddr*>(&address), &addrlen);
       if (socket_fd < 0) {
-        perror("connection accept failed");
+        LOG_ERROR_WITH_ERRNO_MSG("connection accept failed");
         continue;
       }
       // todo: log address info
-      LOG_INFO("connection accepted");
-
+      LOG_INFO("connection accepted (address=" + std::string(inet_ntoa(address.sin_addr)) + ")");
 
       process_connection(fs, socket_fd);
 
       shutdown(socket_fd, SHUT_RDWR);
       close(socket_fd);
+      LOG_INFO("connection finished");
     }
   }
 

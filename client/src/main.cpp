@@ -6,8 +6,10 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
+#include <support/files.h>
+
 int proxy_command(int socket_fd, const std::string& query) {
-  int bytes_sent = write(socket_fd, query.c_str(), query.size());
+  int bytes_sent = writeall(socket_fd, query.c_str(), query.size());
   if (bytes_sent < 0) {
     perror("Query sending failed");
   }
@@ -65,7 +67,7 @@ int store(int socket_fd, const std::string& query) {
   std::cerr << "file len read: (from_file_len=" << from_file_len << ")" << std::endl;
 
   std::string remote_query = query;
-  if (write(socket_fd, remote_query.c_str(), remote_query.size()) < 0) {
+  if (writeall(socket_fd, remote_query.c_str(), remote_query.size()) < 0) {
     close(from_fd);
     return -1;
   }
@@ -79,7 +81,7 @@ int store(int socket_fd, const std::string& query) {
   std::cerr << "(query_correctness_response=" << std::string(query_correctness_response, query_correctness_response_len)
             << std::endl;
 
-  if (write(socket_fd, &from_file_len, sizeof(from_file_len)) < 0) {
+  if (writeall(socket_fd, &from_file_len, sizeof(from_file_len)) < 0) {
     close(from_fd);
     return -1;
   }
@@ -87,14 +89,14 @@ int store(int socket_fd, const std::string& query) {
   for (uint64_t bytes_sent = 0; bytes_sent < from_file_len;) {
     char buffer[4096];
     uint64_t current_read_len = std::min(sizeof(buffer), from_file_len - bytes_sent);
-    int bytes_read = read(from_fd, buffer, current_read_len);
+    int bytes_read = readall(from_fd, buffer, current_read_len);
     if (bytes_read < 0) {
       // todo: what should program do?
       close(from_fd);
       return -1;
     }
 
-    if (write(socket_fd, buffer, bytes_read) < 0) {
+    if (writeall(socket_fd, buffer, bytes_read) < 0) {
       close(from_fd);
       return -1;
     }
@@ -168,7 +170,7 @@ int load(int socket_fd, const std::string& query) {
   }
 
   std::string remote_query = query;
-  if (write(socket_fd, remote_query.c_str(), remote_query.size()) < 0) {
+  if (writeall(socket_fd, remote_query.c_str(), remote_query.size()) < 0) {
     close(to_fd);
     return -1;
   }
@@ -185,7 +187,7 @@ int load(int socket_fd, const std::string& query) {
   uint64_t from_file_len;
 
   int bytes_read;
-  if ((bytes_read = read(socket_fd, &from_file_len, sizeof(from_file_len))) < 0 ||
+  if ((bytes_read = readall(socket_fd, &from_file_len, sizeof(from_file_len))) < 0 ||
       bytes_read != sizeof(from_file_len)) {
     close(to_fd);
     return -1;
@@ -200,7 +202,7 @@ int load(int socket_fd, const std::string& query) {
     }
 
     uint64_t current_write_len = std::min((uint64_t)bytes_read, from_file_len - bytes_written);
-    if (write(to_fd, buffer, current_write_len) < 0) {
+    if (writeall(to_fd, buffer, current_write_len) < 0) {
       std::cout << "Writing to file failed" << std::endl;
       return -1;
     }

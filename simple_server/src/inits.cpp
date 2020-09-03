@@ -9,7 +9,7 @@ int init_socket(uint16_t port) {
   int server_fd = socket(AF_INET, SOCK_STREAM, 0);
 
   if (server_fd < 0) {
-    LOG_ERROR_WITH_ERRNO_MSG("Can't create socket");
+    LOG_ERROR_WITH_ERRNO_MSG("socket creation failed");
     return -1;
   }
 
@@ -17,12 +17,12 @@ int init_socket(uint16_t port) {
   address.sin_addr.s_addr = INADDR_ANY;
 
   if (bind(server_fd, (struct sockaddr*)&address, sizeof(address)) < 0) {
-    LOG_ERROR_WITH_ERRNO_MSG("Can't bind socket");
+    LOG_ERROR_WITH_ERRNO_MSG("socket bind failed");
     return -1;
   }
 
   if (listen(server_fd, SOMAXCONN) < 0) {
-    perror("Can't set socket to listen mode");
+    LOG_ERROR_WITH_ERRNO_MSG("setting socket to listen mode failed");
     return -1;
   }
 
@@ -43,5 +43,5 @@ int init_server_epoll(int listen_fd) {
     return -1;
   }
 
-  return 0;
+  return epoll_fd;
 }
