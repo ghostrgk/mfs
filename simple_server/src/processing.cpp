@@ -4,8 +4,12 @@
 
 #include <unistd.h>
 
+#include <support/files.h>
+
 #include "cmds.h"
+#include "config.h"
 #include "support.h"
+
 
 int process_connection(fspp::FileSystemClient& fs, int socket_fd) {
   static const std::regex exit_regex(R"(^\s*exit\s*$)");
@@ -49,7 +53,7 @@ int process_connection(fspp::FileSystemClient& fs, int socket_fd) {
 
     // writing output
     std::string response = user_output.str();
-    if (write(socket_fd, response.c_str(), response.size()) < 0) {
+    if (writeall(socket_fd, response.c_str(), response.size()) < 0) {
       return -1;
     }
   }

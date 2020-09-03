@@ -9,4 +9,5 @@ set_target_properties(simple_server PROPERTIES
         C_EXTENSIONS NO
         )
 
+target_link_libraries(simple_server PRIVATE support)
 target_link_libraries(simple_server PRIVATE fs++)

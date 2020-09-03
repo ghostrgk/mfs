@@ -5,6 +5,8 @@
 
 #include <unistd.h>
 
+#include <support/files.h>
+
 int mkfile(fspp::FileSystemClient& fs, const std::string& query, std::ostream& user_output) {
   static const std::regex full_regex(R"(^\s*mkfile\s+(/|((/[\w.]+)+))\s*$)");
   std::cerr << "mkfile command: ";
@@ -50,6 +52,11 @@ int rmfile(fspp::FileSystemClient& fs, const std::string& query, std::ostream& u
 
   const std::string& path = match[1];
   std::cerr << "(path=" << path << ") ";
+
+  if (fs.existsDir(path)) {
+    user_output << "You can't remove directory with rmfile" << std::endl;
+    return -1;
+  }
 
   if (!fs.existsFile(path)) {
     user_output << "File doesn't exist" << std::endl;
@@ -189,7 +196,7 @@ int store(int socket_fd, fspp::FileSystemClient& fs, const std::string& query, s
   }
 
   char intermediate_ok[] = "IOK";
-  write(socket_fd, intermediate_ok, sizeof(intermediate_ok));
+  writeall(socket_fd, intermediate_ok, sizeof(intermediate_ok));
 
   // host/network problems may happened
   // there is no default hton64
@@ -197,7 +204,7 @@ int store(int socket_fd, fspp::FileSystemClient& fs, const std::string& query, s
   uint64_t file_len = 0;
   int bytes_read;
 
-  if ((bytes_read = read(socket_fd, &file_len, sizeof(file_len))) < 0 || bytes_read != sizeof(file_len)) {
+  if ((bytes_read = readall(socket_fd, &file_len, sizeof(file_len))) < 0 || bytes_read != sizeof(file_len)) {
     user_output << "Can't receive file len" << std::endl;
     return -1;
   }
@@ -244,14 +251,14 @@ int load(int socket_fd, fspp::FileSystemClient& fs, const std::string& query, st
   }
 
   char intermediate_ok[] = "IOK";
-  write(socket_fd, intermediate_ok, sizeof(intermediate_ok));
+  writeall(socket_fd, intermediate_ok, sizeof(intermediate_ok));
 
   // todo: make hton64?
   uint64_t file_len = fs.fileSize(from_path);
   std::cerr << "(file_len=" << file_len << ") ";
 
   int bytes_written;
-  if ((bytes_written = write(socket_fd, &file_len, sizeof(file_len))) < 0 || bytes_written != sizeof(file_len)) {
+  if ((bytes_written = writeall(socket_fd, &file_len, sizeof(file_len))) < 0 || bytes_written != sizeof(file_len)) {
     user_output << "Can't send file len" << std::endl;
     return -1;
   }
@@ -265,7 +272,7 @@ int load(int socket_fd, fspp::FileSystemClient& fs, const std::string& query, st
       return -1;
     }
 
-    if (write(socket_fd, buffer, current_read_len) < 0) {
+    if (writeall(socket_fd, buffer, current_read_len) < 0) {
       user_output << "Can't send file content" << std::endl;
     }
     bytes_sent += current_read_len;

@@ -10,6 +10,7 @@
 #include <fs++/filesystem_client.h>
 #include <arpa/inet.h>
 
+#include "config.h"
 #include "inits.h"
 #include "processing.h"
 #include "support.h"
@@ -100,7 +101,7 @@ int main(int argc, char** argv) {
       }
 
       struct sockaddr_in address {};
-      socklen_t addrlen;
+      socklen_t addrlen = sizeof(address);
 
       int socket_fd = accept(server_fd, reinterpret_cast<sockaddr*>(&address), &addrlen);
       if (socket_fd < 0) {

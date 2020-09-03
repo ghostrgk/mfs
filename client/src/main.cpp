@@ -91,7 +91,9 @@ int store(int socket_fd, const std::string& query) {
     uint64_t current_read_len = std::min(sizeof(buffer), from_file_len - bytes_sent);
     int bytes_read = readall(from_fd, buffer, current_read_len);
     if (bytes_read < 0) {
-      // todo: what should program do?
+      // drop written
+      ftruncate(from_fd, 0);
+
       close(from_fd);
       return -1;
     }
@@ -284,26 +286,6 @@ int main(int argc, char** argv) {
     } else if (std::regex_search(input, match, mkfile_cmd_regex) || std::regex_search(input, match, rmfile_cmd_regex) ||
                std::regex_search(input, match, mkdir_cmd_regex) || std::regex_search(input, match, rmdir_cmd_regex) ||
                std::regex_search(input, match, lsdir_cmd_regex)) {
-      if (proxy_command(socket_fd, input) < 0) {
-        break;
-      }
-
-    } else if (std::regex_search(input, match, rmfile_cmd_regex)) {
-      if (proxy_command(socket_fd, input) < 0) {
-        break;
-      }
-
-    } else if (std::regex_search(input, match, mkdir_cmd_regex)) {
-      if (proxy_command(socket_fd, input) < 0) {
-        break;
-      }
-
-    } else if (std::regex_search(input, match, rmdir_cmd_regex)) {
-      if (proxy_command(socket_fd, input) < 0) {
-        break;
-      }
-
-    } else if (std::regex_search(input, match, lsdir_cmd_regex)) {
       if (proxy_command(socket_fd, input) < 0) {
         break;
       }
