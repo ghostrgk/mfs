@@ -1,4 +1,4 @@
-add_executable(simple_server main.cpp cmds.cpp inits.cpp)
+add_executable(simple_server main.cpp cmds.cpp inits.cpp processing.cpp)
 
 set_target_properties(simple_server PROPERTIES
         CXX_STANDARD 20
