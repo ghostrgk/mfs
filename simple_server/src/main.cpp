@@ -1,6 +1,5 @@
 #include <iostream>
 #include <string>
-#include <sstream>
 #include <regex>
 
 #include <cstdlib>
@@ -193,7 +192,6 @@ int main(int argc, char** argv) {
   while (!ending) {
     struct epoll_event events[MAX_EPOLL_EVENTS];
 
-    // todo: maybe add concurrency?
     sigset_t mask;
     sigfillset(&mask);
     sigdelset(&mask, SIGINT);

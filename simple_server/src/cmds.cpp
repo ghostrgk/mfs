@@ -188,6 +188,9 @@ int store(int socket_fd, fspp::FileSystemClient& fs, const std::string& query, s
     }
   }
 
+  char intermediate_ok[] = "IOK";
+  write(socket_fd, intermediate_ok, sizeof(intermediate_ok));
+
   // host/network problems may happened
   // there is no default hton64
   // todo: fix
