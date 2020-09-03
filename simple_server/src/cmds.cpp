@@ -243,6 +243,9 @@ int load(int socket_fd, fspp::FileSystemClient& fs, const std::string& query, st
     return -1;
   }
 
+  char intermediate_ok[] = "IOK";
+  write(socket_fd, intermediate_ok, sizeof(intermediate_ok));
+
   // todo: make hton64?
   uint64_t file_len = fs.fileSize(from_path);
   std::cerr << "(file_len=" << file_len << ") ";

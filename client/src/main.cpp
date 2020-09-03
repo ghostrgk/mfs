@@ -5,7 +5,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <arpa/inet.h>
-#include <netinet/ip.h>
 
 int proxy_command(int socket_fd, const std::string& query) {
   int bytes_sent = write(socket_fd, query.c_str(), query.size());
@@ -124,74 +123,89 @@ int load(int socket_fd, const std::string& query) {
   std::cerr << "(to_path=" << to_path << ") ";
 
   (void)socket_fd;
-  //  if (!fs.existsFile(from_path)) {
-  //    std::cout << "Requested file doesn't exist" << std::endl;
-  //    return -1;
-  //  }
-  //
-  //  const char* from_basename_start = strrchr(from_path.c_str(), '/') + 1;
-  //  assert(from_basename_start != nullptr);
-  //  std::string from_basename(from_basename_start);
-  //
-  //  int to_fd = open(to_path.c_str(), O_RDWR);
-  //  if (to_fd < 0) {
-  //    if (errno != ENOENT) {
-  //      std::cout << "Can't open to_file/to_directory" << std::endl;
-  //      return -1;
-  //    }
-  //
-  //    to_fd = open(to_path.c_str(), O_CREAT | O_RDWR | O_TRUNC, 0640);
-  //    if (to_fd < 0) {
-  //      std::cout << "Can't create to_file" << std::endl;
-  //      return -1;
-  //    }
-  //  }
-  //
-  //  struct stat stat_buf {};
-  //  if (fstat(to_fd, &stat_buf) < 0) {
-  //    std::cout << "Can't read to_file stat" << std::endl;
-  //
-  //    close(to_fd);
-  //    return -1;
-  //  }
-  //
-  //  if (S_ISDIR(stat_buf.st_mode)) {
-  //    to_path += from_basename;
-  //    close(to_fd);
-  //    to_fd = open(to_path.c_str(), O_RDWR);
-  //    if (to_fd < 0) {
-  //      if (errno != ENOENT) {
-  //        std::cout << "Can't open to_file" << std::endl;
-  //        return -1;
-  //      }
-  //
-  //      to_fd = open(to_path.c_str(), O_CREAT | O_RDWR | O_TRUNC, 0640);
-  //      if (to_fd < 0) {
-  //        std::cout << "Can't create to_file" << std::endl;
-  //        return -1;
-  //      }
-  //    }
-  //  }
-  //
-  //  uint64_t from_file_len = fs.fileSize(from_path);
-  //  ftruncate(to_fd, from_file_len);
-  //  void* to_file_content = mmap64(nullptr, from_file_len, PROT_WRITE, MAP_SHARED, to_fd, 0);
-  //
-  //  int bytes_read = fs.readFileContent(from_path, 0, to_file_content, from_file_len);
-  //  if (bytes_read == -1) {
-  //    std::cout << "Can't write to app filesystem" << std::endl;
-  //
-  //    munmap(to_file_content, from_file_len);
-  //    close(to_fd);
-  //    return -1;
-  //  }
-  //
-  //  if ((uint64_t)bytes_read != from_file_len) {
-  //    std::cerr << "possible file corruption" << std::endl;
-  //  }
-  //
-  //  munmap(to_file_content, from_file_len);
-  //  close(to_fd);
+
+  const char* from_basename_start = strrchr(from_path.c_str(), '/') + 1;
+  std::string from_basename(from_basename_start);
+
+  int to_fd = open(to_path.c_str(), O_RDWR);
+  if (to_fd < 0) {
+    if (errno != ENOENT) {
+      std::cout << "Can't open to_file/to_directory" << std::endl;
+      return -1;
+    }
+
+    to_fd = open(to_path.c_str(), O_CREAT | O_RDWR | O_TRUNC, 0640);
+    if (to_fd < 0) {
+      std::cout << "Can't create to_file" << std::endl;
+      return -1;
+    }
+  }
+
+  struct stat stat_buf {};
+  if (fstat(to_fd, &stat_buf) < 0) {
+    std::cout << "Can't read to_file stat" << std::endl;
+
+    close(to_fd);
+    return -1;
+  }
+
+  if (S_ISDIR(stat_buf.st_mode)) {
+    to_path += from_basename;
+    close(to_fd);
+    to_fd = open(to_path.c_str(), O_RDWR);
+    if (to_fd < 0) {
+      if (errno != ENOENT) {
+        std::cout << "Can't open to_file" << std::endl;
+        return -1;
+      }
+
+      to_fd = open(to_path.c_str(), O_CREAT | O_RDWR | O_TRUNC, 0640);
+      if (to_fd < 0) {
+        std::cout << "Can't create to_file" << std::endl;
+        return -1;
+      }
+    }
+  }
+
+  std::string remote_query = query;
+  if (write(socket_fd, remote_query.c_str(), remote_query.size()) < 0) {
+    close(to_fd);
+    return -1;
+  }
+
+  char query_correctness_response[4096];
+  int query_correctness_response_len = read(socket_fd, query_correctness_response, sizeof(query_correctness_response));
+  if (query_correctness_response_len < 0) {
+    close(to_fd);
+    return -1;
+  }
+  std::cerr << "(query_correctness_response=" << std::string(query_correctness_response, query_correctness_response_len)
+            << std::endl;
+
+  uint64_t from_file_len;
+
+  int bytes_read;
+  if ((bytes_read = read(socket_fd, &from_file_len, sizeof(from_file_len))) < 0 ||
+      bytes_read != sizeof(from_file_len)) {
+    close(to_fd);
+    return -1;
+  }
+
+  for (uint64_t bytes_written = 0; bytes_written < from_file_len;) {
+    char buffer[4096];
+    if ((bytes_read = read(socket_fd, buffer, sizeof(buffer))) < 0) {
+      // maybe need to delete file
+      std::cout << "Can't receive file content" << std::endl;
+      return -1;
+    }
+
+    uint64_t current_write_len = std::min((uint64_t)bytes_read, from_file_len - bytes_written);
+    if (write(to_fd, buffer, current_write_len) < 0) {
+      std::cout << "Writing to file failed" << std::endl;
+      return -1;
+    }
+    bytes_written += current_write_len;
+  }
 
   return 0;
 }
