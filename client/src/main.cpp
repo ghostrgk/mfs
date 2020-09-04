@@ -8,6 +8,8 @@
 
 #include <support/files.h>
 
+#include <network_constants/constants.h>
+
 int proxy_command(int socket_fd, const std::string& query) {
   int bytes_sent = writeall(socket_fd, query.c_str(), query.size());
   if (bytes_sent < 0) {
@@ -276,6 +278,11 @@ int main(int argc, char** argv) {
     if (!std::getline(std::cin, input)) {
       std::cerr << "EOF: exiting" << std::endl;
       break;
+    }
+
+    if (input.size() > MAX_QUERY_LEN) {
+      std::cout << "Query too big" << std::endl;
+      continue;
     }
 
     std::smatch match;

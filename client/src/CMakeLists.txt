@@ -7,3 +7,4 @@ set_target_properties(client PROPERTIES
         )
 
 target_link_libraries(client PRIVATE support)
+target_link_libraries(client PRIVATE network_constants)

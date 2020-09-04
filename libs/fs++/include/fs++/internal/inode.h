@@ -98,7 +98,7 @@ class Inodes {
 
  public:
   int addBlockToInode(Inode& inode, uint64_t block_id);
-  //todo: indicate error
+  // todo: indicate error
   uint64_t createInode();
   void deleteInode(uint64_t inode_id);
 

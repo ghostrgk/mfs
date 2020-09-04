@@ -11,7 +11,7 @@
 
 #include <fs++/filesystem_client.h>
 
-int mkfile(int socket_fdconst std::string& query) {
+int mkfile(fspp::FileSystemClient& fs, const std::string& query) {
   static const std::regex full_regex(R"(^\s*mkfile\s+(/|((/[\w.]+)+))\s*$)");
   std::cerr << "mkfile command: ";
 
@@ -41,7 +41,7 @@ int mkfile(int socket_fdconst std::string& query) {
   return 0;
 }
 
-int rmfile(int socket_fd, const std::string& query) {
+int rmfile(fspp::FileSystemClient& fs, const std::string& query) {
   static const std::regex full_regex(R"(^\s*rmfile\s+(/|(/[\w.]+)+)\s*$)");
   std::cerr << "rmfile command: ";
 
@@ -66,7 +66,7 @@ int rmfile(int socket_fd, const std::string& query) {
   return 0;
 }
 
-int mkdir(int socket_fd, const std::string& query) {
+int mkdir(fspp::FileSystemClient& fs, const std::string& query) {
   static const std::regex full_regex(R"(^\s*mkdir\s+(/|((/[\w.]+)+))\s*$)");
   std::cerr << "mkdir command: ";
 
@@ -96,7 +96,7 @@ int mkdir(int socket_fd, const std::string& query) {
   return 0;
 }
 
-int rmdir(int socket_fd, const std::string& query) {
+int rmdir(fspp::FileSystemClient& fs, const std::string& query) {
   static const std::regex full_regex(R"(^\s*rmdir\s+(/|(/[\w.]+)+)\s*$)");
   std::cerr << "rmdir command: ";
 
@@ -126,7 +126,7 @@ int rmdir(int socket_fd, const std::string& query) {
   return 0;
 }
 
-int lsdir(int socket_fd, const std::string& query) {
+int lsdir(fspp::FileSystemClient& fs, const std::string& query) {
   static const std::regex full_regex(R"(^\s*lsdir\s+(/|(/[\w.]+)+)\s*$)");
   std::cerr << "lsdir command: ";
 
@@ -154,7 +154,7 @@ int lsdir(int socket_fd, const std::string& query) {
   return 0;
 }
 
-int store(int socket_fd, const std::string& query) {
+int store(fspp::FileSystemClient& fs, const std::string& query) {
   static const std::regex full_regex(R"(^\s*store\s+(/|(/[-\d\w.]+)+)\s+(/|(/[-\d\w.]+)+)\s*$)");
   std::cerr << "store command: ";
 
@@ -230,7 +230,7 @@ int store(int socket_fd, const std::string& query) {
   return 0;
 }
 
-int load(int socket_fd, const std::string& query) {
+int load(fspp::FileSystemClient& fs, const std::string& query) {
   static const std::regex full_regex(R"(^\s*load\s+(/|(/[\w.]+)+)\s+(/|(/[\w.]+)+)\s*$)");
   std::cerr << "load command: ";
 

@@ -42,7 +42,7 @@ int InodesList::addBlock(Blocks* blocks, id_t block_id) {
 
   if (index == 0) {
     if (blocks->createBlock(&level1_id_) < 0) {
-     return -1;
+      return -1;
     }
   }
 

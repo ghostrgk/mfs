@@ -6,10 +6,10 @@
 
 #include <support/files.h>
 
-#include "cmds.h"
-#include "config.h"
-#include "support.h"
+#include <network_constants/constants.h>
 
+#include "cmds.h"
+#include "support.h"
 
 int process_connection(fspp::FileSystemClient& fs, int socket_fd) {
   static const std::regex exit_regex(R"(^\s*exit\s*$)");

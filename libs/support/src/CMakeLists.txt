@@ -1,4 +1,4 @@
-add_library(support STATIC files.cpp)
+add_library(support STATIC files.cpp network.cpp)
 
 target_include_directories(support PUBLIC ${PROJECT_SOURCE_DIR}/include)
 

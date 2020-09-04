@@ -10,4 +10,5 @@ set_target_properties(simple_server PROPERTIES
         )
 
 target_link_libraries(simple_server PRIVATE support)
+target_link_libraries(simple_server PRIVATE network_constants)
 target_link_libraries(simple_server PRIVATE fs++)

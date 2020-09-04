@@ -6,6 +6,9 @@
 #include <unistd.h>
 
 #include <support/files.h>
+#include <support/network.h>
+
+#include <network_constants/constants.h>
 
 int mkfile(fspp::FileSystemClient& fs, const std::string& query, std::ostream& user_output) {
   static const std::regex full_regex(R"(^\s*mkfile\s+(/|((/[\w.]+)+))\s*$)");
@@ -195,13 +198,9 @@ int store(int socket_fd, fspp::FileSystemClient& fs, const std::string& query, s
     }
   }
 
-  char intermediate_ok[] = "IOK";
-  writeall(socket_fd, intermediate_ok, sizeof(intermediate_ok));
+  writeall(socket_fd, sok, strlen(sok));
 
-  // host/network problems may happened
-  // there is no default hton64
-  // todo: fix
-  uint64_t file_len = 0;
+  uint64_t file_len;
   int bytes_read;
 
   if ((bytes_read = readall(socket_fd, &file_len, sizeof(file_len))) < 0 || bytes_read != sizeof(file_len)) {
@@ -209,8 +208,10 @@ int store(int socket_fd, fspp::FileSystemClient& fs, const std::string& query, s
     return -1;
   }
 
+  file_len = ntoh64(file_len);
+
   for (uint64_t bytes_written = 0; bytes_written < file_len;) {
-    char buffer[4096];
+    char buffer[MAX_TRANSMISSION_LEN];
     if ((bytes_read = read(socket_fd, buffer, sizeof(buffer))) < 0) {
       // maybe add more smart way to have unfilled files
       fs.deleteFile(to_path);
@@ -253,9 +254,9 @@ int load(int socket_fd, fspp::FileSystemClient& fs, const std::string& query, st
   char intermediate_ok[] = "IOK";
   writeall(socket_fd, intermediate_ok, sizeof(intermediate_ok));
 
-  // todo: make hton64?
   uint64_t file_len = fs.fileSize(from_path);
   std::cerr << "(file_len=" << file_len << ") ";
+  file_len = hton64(file_len);
 
   int bytes_written;
   if ((bytes_written = writeall(socket_fd, &file_len, sizeof(file_len))) < 0 || bytes_written != sizeof(file_len)) {

@@ -24,10 +24,10 @@ const uint64_t INODE_MAX_BLOCK_COUNT = 512;
 #endif
 
 static_assert(sizeof(char) == sizeof(uint8_t), "char should be 1 byte");
-static_assert(DEFAULT_BLOCK_COUNT % 8 == 0);  // current requirement of bitset
-static_assert(DEFAULT_INODE_COUNT % 8 == 0);  // current requirement of bitset
-static_assert(DEFAULT_BLOCK_COUNT % 64 == 0); // requirement of layout
-static_assert(DEFAULT_INODE_COUNT % 64 == 0); // requirement of layout
+static_assert(DEFAULT_BLOCK_COUNT % 8 == 0);   // current requirement of bitset
+static_assert(DEFAULT_INODE_COUNT % 8 == 0);   // current requirement of bitset
+static_assert(DEFAULT_BLOCK_COUNT % 64 == 0);  // requirement of layout
+static_assert(DEFAULT_INODE_COUNT % 64 == 0);  // requirement of layout
 static_assert(BLOCK_SIZE % sizeof(id_t) == 0);
 
 }  // namespace fspp

@@ -10,8 +10,9 @@ add_link_options(-Wall -Wextra -Wpedantic -g -fsanitize=address,leak,undefined)
 
 # need to think about coverage and memsan
 
-add_subdirectory(support)
-add_subdirectory(fs++)
+add_subdirectory(libs)
 add_subdirectory(local_app)
+
+
 add_subdirectory(client)
 add_subdirectory(simple_server)

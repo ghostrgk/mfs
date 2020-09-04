@@ -41,7 +41,7 @@ int Blocks::deleteBlock(id_t block_id) {
 
   bit_set_.clearBit(block_id);
   ++(*free_block_num_ptr_);
-  
+
   return 0;
 }
 
