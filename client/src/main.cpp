@@ -90,8 +90,6 @@ int store(int socket_fd, const std::string& query) {
     return -1;
   }
 
-
-
   for (uint64_t bytes_sent = 0; bytes_sent < from_file_len;) {
     char buffer[4096];
     uint64_t current_read_len = std::min(sizeof(buffer), from_file_len - bytes_sent);
@@ -114,6 +112,13 @@ int store(int socket_fd, const std::string& query) {
 
   close(from_fd);
 
+  char buffer[MAX_TRANSMISSION_LEN];
+  int bytes_received = read(socket_fd, buffer, sizeof(buffer));
+  if (bytes_received < 0) {
+    return -1;
+  }
+
+  std::cout << std::string(buffer, bytes_received) << std::endl;
   return 0;
 }
 
@@ -131,8 +136,6 @@ int load(int socket_fd, const std::string& query) {
   std::string to_path = match[3];
   std::cerr << "(from_path=" << from_path << ") ";
   std::cerr << "(to_path=" << to_path << ") ";
-
-  (void)socket_fd;
 
   const char* from_basename_start = strrchr(from_path.c_str(), '/') + 1;
   std::string from_basename(from_basename_start);
@@ -211,7 +214,8 @@ int load(int socket_fd, const std::string& query) {
   for (uint64_t bytes_written = 0; bytes_written < from_file_len;) {
     char buffer[4096];
     int bytes_read;
-    if ((bytes_read = read(socket_fd, buffer, sizeof(buffer))) < 0) {
+    uint64_t max_read_len = std::min(sizeof(buffer), from_file_len - bytes_written);
+    if ((bytes_read = read(socket_fd, buffer, max_read_len)) < 0) {
       // maybe need to delete file
       std::cout << "Can't receive file content" << std::endl;
       return -1;
@@ -224,6 +228,14 @@ int load(int socket_fd, const std::string& query) {
     }
     bytes_written += current_write_len;
   }
+
+  char buffer[MAX_TRANSMISSION_LEN];
+  int bytes_received = read(socket_fd, buffer, sizeof(buffer));
+  if (bytes_received < 0) {
+    return -1;
+  }
+
+  std::cout << std::string(buffer, bytes_received) << std::endl;
 
   return 0;
 }
