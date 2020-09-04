@@ -1,4 +1,5 @@
 #include "cmds.h"
+#include "support.h"
 
 #include <iostream>
 #include <regex>
@@ -209,6 +210,7 @@ int store(int socket_fd, fspp::FileSystemClient& fs, const std::string& query, s
   }
 
   file_len = ntoh64(file_len);
+  LOG_INFO("(file_len=" + std::to_string(file_len) + ")");
 
   for (uint64_t bytes_written = 0; bytes_written < file_len;) {
     char buffer[MAX_TRANSMISSION_LEN];
@@ -251,15 +253,21 @@ int load(int socket_fd, fspp::FileSystemClient& fs, const std::string& query, st
     return -1;
   }
 
-  char intermediate_ok[] = "IOK";
-  writeall(socket_fd, intermediate_ok, sizeof(intermediate_ok));
+  if (writeall(socket_fd, sok, strlen(sok)) < 0) {
+    user_output << "Connection problems occurred" << std::endl;
+    return -1;
+  }
+
+  char cok_buffer[MAX_TRANSMISSION_LEN];
+  if (read(socket_fd, cok_buffer, sizeof(cok_buffer)) < 0) {
+    return -1;
+  }
 
   uint64_t file_len = fs.fileSize(from_path);
-  std::cerr << "(file_len=" << file_len << ") ";
-  file_len = hton64(file_len);
+  LOG_INFO("(file_len=" + std::to_string(file_len) + ")");
 
-  int bytes_written;
-  if ((bytes_written = writeall(socket_fd, &file_len, sizeof(file_len))) < 0 || bytes_written != sizeof(file_len)) {
+  uint64_t sending_from_file_len = hton64(file_len);
+  if (writeall(socket_fd, &sending_from_file_len, sizeof(sending_from_file_len)) < 0) {
     user_output << "Can't send file len" << std::endl;
     return -1;
   }
@@ -267,7 +275,6 @@ int load(int socket_fd, fspp::FileSystemClient& fs, const std::string& query, st
   for (uint64_t bytes_sent = 0; bytes_sent < file_len;) {
     char buffer[4096];
     uint64_t current_read_len = std::min((uint64_t)sizeof(buffer), file_len - bytes_sent);
-    std::cerr << "(current_read_len=" << current_read_len << ") ";
     if (fs.readFileContent(from_path, bytes_sent, buffer, current_read_len) < 0) {
       user_output << "Reading of file failed" << std::endl;
       return -1;

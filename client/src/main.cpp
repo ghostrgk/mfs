@@ -9,6 +9,7 @@
 #include <support/files.h>
 
 #include <network_constants/constants.h>
+#include <support/network.h>
 
 int proxy_command(int socket_fd, const std::string& query) {
   int bytes_sent = writeall(socket_fd, query.c_str(), query.size());
@@ -83,10 +84,13 @@ int store(int socket_fd, const std::string& query) {
   std::cerr << "(query_correctness_response=" << std::string(query_correctness_response, query_correctness_response_len)
             << std::endl;
 
-  if (writeall(socket_fd, &from_file_len, sizeof(from_file_len)) < 0) {
+  uint64_t sending_from_file_len = hton64(from_file_len);
+  if (writeall(socket_fd, &sending_from_file_len, sizeof(sending_from_file_len)) < 0) {
     close(from_fd);
     return -1;
   }
+
+
 
   for (uint64_t bytes_sent = 0; bytes_sent < from_file_len;) {
     char buffer[4096];
@@ -188,17 +192,25 @@ int load(int socket_fd, const std::string& query) {
   std::cerr << "(query_correctness_response=" << std::string(query_correctness_response, query_correctness_response_len)
             << std::endl;
 
-  uint64_t from_file_len;
+  // todo: add checks for "query_correctness_response"
 
-  int bytes_read;
-  if ((bytes_read = readall(socket_fd, &from_file_len, sizeof(from_file_len))) < 0 ||
-      bytes_read != sizeof(from_file_len)) {
+  if (writeall(socket_fd, cok, strlen(cok)) < 0) {
     close(to_fd);
     return -1;
   }
 
+  uint64_t from_file_len;
+  if (readall(socket_fd, &from_file_len, sizeof(from_file_len)) < 0) {
+    close(to_fd);
+    return -1;
+  }
+
+  from_file_len = ntoh64(from_file_len);
+  std::cerr << "(from_file_len=" << from_file_len << ")" << std::endl;
+
   for (uint64_t bytes_written = 0; bytes_written < from_file_len;) {
     char buffer[4096];
+    int bytes_read;
     if ((bytes_read = read(socket_fd, buffer, sizeof(buffer))) < 0) {
       // maybe need to delete file
       std::cout << "Can't receive file content" << std::endl;
