@@ -1,12 +1,12 @@
-#include <cstring>
+#include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
 
 #include <sys/mman.h>
 
-#include "fs++/internal/filesystem.h"
-#include "fs++/internal/logging.h"
-#include "fs++/internal/compiler.h"
+#include "fsc/internal/filesystem.h"
+#include "fsc/internal/logging.h"
+#include "fsc/internal/compiler.h"
 
 #define FSC_HANDLE_ERROR(msg) \
   do {                         \
@@ -14,10 +14,6 @@
     std::abort();              \
   } while (false)
 
-namespace fspp::internal {
-
-namespace in = internal;
-using internal::Link;
 
 static int initRootInode(int ffile_fd, SuperBlock& superblock) {
   auto* ffile_content = static_cast<uint8_t*>(
@@ -422,5 +418,3 @@ int FileSystem::listDir(const std::string& dir_path, std::string& output) {
 
   return 0;
 }
-
-}  // namespace fspp::internal

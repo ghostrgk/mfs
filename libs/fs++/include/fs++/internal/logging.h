@@ -2,4 +2,4 @@
 
 #include <iostream>
 
-#define FSPP_LOG(subsystem, msg) std::cerr << (subsystem) << ": " << (msg) << std::endl
+#define FSC_LOG(subsystem, msg) std::cerr << (subsystem) << ": " << (msg) << std::endl

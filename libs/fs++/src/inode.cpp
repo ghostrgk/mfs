@@ -70,7 +70,7 @@ int Inodes::write(Inode* inode_ptr, const void* buffer, uint64_t offset, uint64_
 
   if (offset + count > inode.file_size) {
     if (extend(inode, offset + count) < 0) {
-      FSPP_LOG("INODE", "can't extend inodes");
+      FSC_LOG("INODE", "can't extend inodes");
       return -1;
     }
   }

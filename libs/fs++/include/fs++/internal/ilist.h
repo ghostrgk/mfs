@@ -38,7 +38,7 @@ class InodesList {
   int addBlock(Blocks* blocks, id_t block_id);
 
   [[maybe_unused]] uint64_t BlocksNeededToAddBlocks(uint64_t additional_blocks_count) {
-    FSPP_USED_BY_ASSERT(additional_blocks_count);
+    FSC_USED_BY_ASSERT(additional_blocks_count);
     return 0;
   }
 
