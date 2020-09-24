@@ -29,9 +29,6 @@ int process_connection(fspp::FileSystemClient& fs, int socket_fd) {
 
     std::ostringstream user_output;
 
-    // connection dependent commands
-    // looks bad
-    // todo: fix
     std::smatch match;
     if (std::regex_match(input, match, exit_regex)) {
       std::cerr << "exit command: exiting" << std::endl;

@@ -148,7 +148,6 @@ void Inodes::deleteInode(uint64_t inode_id) {
     }
   }
 
-  // todo: delete InodeList blocks
   auto& inode = getInodeById(inode_id);
   for (uint64_t i = 0; i < inode.blocks_count; ++i) {
     if (blocks_->deleteBlock(inode.inodes_list.getBlockIdByIndex(blocks_, i)) < 0) {

@@ -47,6 +47,8 @@ int main(int argc, char** argv) {
     return EXIT_FAILURE;
   }
 
+  daemon(0, 0);
+
   // filesystem init
   std::string filesystem_path(argv[1]);
   fspp::FileSystemClient fs(filesystem_path);
@@ -108,7 +110,7 @@ int main(int argc, char** argv) {
         LOG_ERROR_WITH_ERRNO_MSG("connection accept failed");
         continue;
       }
-      // todo: log address info
+
       LOG_INFO("connection accepted (address=" + std::string(inet_ntoa(address.sin_addr)) + ")");
 
       process_connection(fs, socket_fd);

@@ -20,7 +20,6 @@ class InodesList {
     return ((uint64_t*)blocks->getBlockById(block_id).bytes)[index];
   }
 
-  // todo: indicate error
   id_t getBlockIdByIndex(Blocks* blocks, uint64_t index);
 
   [[nodiscard]] uint64_t size() const {

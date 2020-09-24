@@ -81,7 +81,6 @@ class Inodes {
    * @param buffer
    * @param offset
    * @param count
-   * @todo change interface
    * @return on success, the number of bytes read is returned. on error, -1 is returned.
    */
   int read(Inode* inode_ptr, void* buffer, uint64_t offset, uint64_t count) const;
@@ -98,7 +97,6 @@ class Inodes {
 
  public:
   int addBlockToInode(Inode& inode, uint64_t block_id);
-  // todo: indicate error
   uint64_t createInode();
   void deleteInode(uint64_t inode_id);
 

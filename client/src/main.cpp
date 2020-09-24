@@ -193,9 +193,11 @@ int load(int socket_fd, const std::string& query) {
     return -1;
   }
   std::cerr << "(query_correctness_response=" << std::string(query_correctness_response, query_correctness_response_len)
-            << std::endl;
+            << ")" << std::endl;
 
-  // todo: add checks for "query_correctness_response"
+  if (std::string(query_correctness_response, query_correctness_response_len) != std::string(sok)) {
+    return -1;
+  }
 
   if (writeall(socket_fd, cok, strlen(cok)) < 0) {
     close(to_fd);
