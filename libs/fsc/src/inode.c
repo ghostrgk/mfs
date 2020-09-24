@@ -26,7 +26,7 @@ static uint64_t min(uint64_t lhs, uint64_t rhs) {
   return rhs;
 }
 
-int read(struct Inodes* inodes, Inode* inode_ptr, void* buffer, uint64_t offset, uint64_t count) {
+int Inode_read(struct Inodes* inodes, Inode* inode_ptr, void* buffer, uint64_t offset, uint64_t count) {
   uint8_t* byte_buffer = buffer;
   uint64_t count_down = count;
 
@@ -70,7 +70,7 @@ int read(struct Inodes* inodes, Inode* inode_ptr, void* buffer, uint64_t offset,
   return buffer_offset;
 }
 
-int write(struct Inodes* inodes, Inode* inode_ptr, const void* buffer, uint64_t offset, uint64_t count) {
+int Inode_write(struct Inodes* inodes, Inode* inode_ptr, const void* buffer, uint64_t offset, uint64_t count) {
   const uint8_t* byte_buffer = buffer;
   uint64_t count_down = count;
 
@@ -125,8 +125,8 @@ int write(struct Inodes* inodes, Inode* inode_ptr, const void* buffer, uint64_t 
   return buffer_offset;
 }
 
-int append(struct Inodes* inodes, Inode* inode_ptr, const void* buffer, uint64_t count) {
-  return write(inodes, inode_ptr, buffer, inode_ptr->file_size, count);
+int Inode_append(struct Inodes* inodes, Inode* inode_ptr, const void* buffer, uint64_t count) {
+  return Inode_write(inodes, inode_ptr, buffer, inode_ptr->file_size, count);
 }
 
 int addBlockToInode(struct Inodes* inodes, Inode* inode, uint64_t block_id) {
@@ -159,7 +159,7 @@ void deleteInode(struct Inodes* inodes, uint64_t inode_id) {
       // delete all files and subdirectories
       for (uint64_t i = 0; i * sizeof(Link) < inode->file_size; ++i) {
         Link link;
-        read(inodes, inode, &link, i * sizeof(Link), sizeof(Link));
+        Inode_read(inodes, inode, &link, i * sizeof(Link), sizeof(Link));
         if (link.is_alive) {
           deleteInode(inodes, link.inode_id);
         }
@@ -193,9 +193,9 @@ int addDirectoryEntry(struct Inodes* inodes, Inode* inode_ptr, const char* name,
 
   for (uint64_t i = 0; i * sizeof(Link) < inode_ptr->file_size; ++i) {
     Link link;
-    read(inodes, inode_ptr, &link, i * sizeof(Link), sizeof(Link));
+    Inode_read(inodes, inode_ptr, &link, i * sizeof(Link), sizeof(Link));
     if (!link.is_alive) {
-      if (write(inodes, inode_ptr, &new_link, i * sizeof(Link), sizeof(Link)) < 0) {
+      if (Inode_write(inodes, inode_ptr, &new_link, i * sizeof(Link), sizeof(Link)) < 0) {
         return -1;
       }
 
@@ -203,14 +203,14 @@ int addDirectoryEntry(struct Inodes* inodes, Inode* inode_ptr, const char* name,
     }
   }
 
-  if (append(inodes, inode_ptr, &new_link, sizeof(Link)) < 0) {
+  if (Inode_append(inodes, inode_ptr, &new_link, sizeof(Link)) < 0) {
     return -1;
   }
 
   return 0;
 }
 
-static int clearInode(struct Inodes* inodes, Inode* inode_ptr) {
+int clearInode(struct Inodes* inodes, Inode* inode_ptr) {
   FSC_UNUSED(inodes);
   inode_ptr->inodes_list.size_ = 0;
   inode_ptr->file_size = 0;

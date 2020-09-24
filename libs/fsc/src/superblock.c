@@ -5,6 +5,7 @@ size_t FileSystemSize(struct SuperBlock* superblock) {
 }
 
 uint64_t InodeBitSetOffset(struct SuperBlock* superblock) {
+  FSC_UNUSED(superblock);
   return sizeof(struct SuperBlock);
 }
 

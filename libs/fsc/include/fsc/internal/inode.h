@@ -76,9 +76,9 @@ int Inodes_init(struct Inodes* inodes, void* inodes_ptr_start, struct Blocks* bl
                 struct BitSet inodes_bitset);
 Inode* getInodeById(struct Inodes* inodes, uint64_t inode_id);
 
-int read(struct Inodes* inodes, Inode* inode_ptr, void* buffer, uint64_t offset, uint64_t count);
-int write(struct Inodes* inodes, Inode* inode_ptr, const void* buffer, uint64_t offset, uint64_t count);
-int append(struct Inodes* inodes, Inode* inode_ptr, const void* buffer, uint64_t count);
+int Inode_read(struct Inodes* inodes, Inode* inode_ptr, void* buffer, uint64_t offset, uint64_t count);
+int Inode_write(struct Inodes* inodes, Inode* inode_ptr, const void* buffer, uint64_t offset, uint64_t count);
+int Inode_append(struct Inodes* inodes, Inode* inode_ptr, const void* buffer, uint64_t count);
 
 int addBlockToInode(struct Inodes* inodes, Inode* inode, uint64_t block_id);
 uint64_t createInode(struct Inodes* inodes);
@@ -89,6 +89,6 @@ void deleteInode(struct Inodes* inodes, uint64_t inode_id);
  */
 int addDirectoryEntry(struct Inodes* inodes, Inode* inode_ptr, const char* name, bool is_dir);
 
-static int clearInode(struct Inodes* inodes, Inode* inode_ptr);
+int clearInode(struct Inodes* inodes, Inode* inode_ptr);
 Block* getBlockByIndex(struct Inodes* inodes, Inode* inode, uint64_t index);
 int extend(struct Inodes* inodes, Inode* inode, uint64_t new_size);

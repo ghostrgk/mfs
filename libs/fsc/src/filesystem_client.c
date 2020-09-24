@@ -3,28 +3,45 @@
 // ffile layout
 // | superblock | inode_bitset | block_bitset | inodes | blocks |
 
-namespace fspp {
-
-FileSystemClient::FileSystemClient(const std::string& ffile_path) : fs_(ffile_path) {
+int FileSystemClient_init(struct FileSystemClient* fsc, const char* ffile_path) {
+  FileSystem_init(&fsc->fs_, ffile_path);
+  return 0;
 }
 
-bool FileSystemClient::existsDir(const std::string& dir_path) {
+bool existsDir(struct FileSystemClient* fsc, const char* dir_path) {
   uint64_t inode_id;
 
-  if (fs_.getFDEInodeId(dir_path, &inode_id) < 0) {
+  if (getFDEInodeId(&fsc->fs_, dir_path, &inode_id) < 0) {
     return false;
   }
 
-  return fs_.getInodeById(inode_id).is_dir;
+  return FS_getInodeById(&fsc->fs_, inode_id)->is_dir;
 }
 
-int FileSystemClient::createDir(const std::string& dir_path) {
-  return fs_.createFDE(dir_path, /*is_dir=*/true);
+int createDir(struct FileSystemClient* fsc, const char* dir_path) {
+  return createFDE(&fsc->fs_, dir_path, /*is_dir=*/true);
 }
 
-int FileSystemClient::deleteDir(const std::string& dir_path) {
-  return fs_.deleteFDE(dir_path, /*is_dir=*/true);
+int deleteDir(struct FileSystemClient* fsc, const char* dir_path) {
+  return deleteFDE(&fsc->fs_, dir_path, /*is_dir=*/true);
 }
+
+/*
+ * You must free *_output_
+ */
+int listDir(struct FileSystemClient* fsc, const char* dir_path, char** output);
+
+bool existsFile(struct FileSystemClient* fsc, const char* file_path);
+int createFile(struct FileSystemClient* fsc, const char* file_path);
+int deleteFile(struct FileSystemClient* fsc, const char* file_path);
+
+// one must use only after successful existsFile
+uint64_t fileSize(struct FileSystemClient* fsc, const char* file_path);
+
+int readFileContent(struct FileSystemClient* fsc, const char* file_path, uint64_t offset, void* buffer, uint64_t size);
+int writeFileContent(struct FileSystemClient* fsc, const char* file_path, uint64_t offset, const void* buffer,
+                     uint64_t size);
+
 
 bool FileSystemClient::existsFile(const std::string& file_path) {
   uint64_t inode_id;
@@ -50,7 +67,7 @@ int FileSystemClient::readFileContent(const std::string& file_path, uint64_t off
     return -1;
   }
 
-  return fs_.read(&fs_.getInodeById(inode_id), buffer, offset, size);
+  return fs_.Inode_read(&fs_.getInodeById(inode_id), buffer, offset, size);
 }
 
 int FileSystemClient::writeFileContent(const std::string& file_path, uint64_t offset, const void* buffer,
@@ -60,11 +77,11 @@ int FileSystemClient::writeFileContent(const std::string& file_path, uint64_t of
     return -1;
   }
 
-  return fs_.write(&fs_.getInodeById(inode_id), buffer, offset, size);
+  return fs_.Inode_write(&fs_.getInodeById(inode_id), buffer, offset, size);
 }
 
 int FileSystemClient::listDir(const std::string& dir_path, std::string& output) {
-  return fs_.listDir(dir_path, output);
+  return fs_.FS_listDir(dir_path, output);
 }
 
 uint64_t FileSystemClient::fileSize(const std::string& file_path) {
